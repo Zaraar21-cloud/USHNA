@@ -1,0 +1,13 @@
+numpy>=1.24.0
+scipy>=1.10.0
+numba>=0.57.0
+jax>=0.4.13
+jaxlib>=0.4.13
+filterpy>=1.4.5
+pysr>=0.16.0
+gpytorch>=1.11
+botorch>=0.9.3
+casadi>=3.6.3
+fastapi>=0.103.0
+pydantic>=2.4.0
+uvicorn>=0.23.2
