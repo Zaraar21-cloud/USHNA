@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import erfc
+from scipy.special import erfc, erfcx
 
 def marx_langenheim_heated_volume(Q_i, M_R, delta_T, k_ob, alpha_ob, h, t):
     """
@@ -23,21 +23,15 @@ def marx_langenheim_heated_volume(Q_i, M_R, delta_T, k_ob, alpha_ob, h, t):
     t_D = (4 * k_ob * t) / (M_R * h**2 * alpha_ob)
     
     # F(t_D) = e^(t_D) * erfc(sqrt(t_D))
-    F_tD = np.exp(t_D) * erfc(np.sqrt(t_D))
+    # Use erfcx(x) = exp(x^2)*erfc(x) to avoid overflow for large t_D
+    sqrt_tD = np.sqrt(t_D)
+    F_tD = erfcx(sqrt_tD)
     
     # Standard Marx-Langenheim formulation for heated area A(t)
-    # The exact form in the PDF has some specific coefficients, we use the standard physical form:
-    # A(t) = (Q_i * M_R * h / (4 * k_ob * M_R * delta_T)) * (e^tD erfc(sqrt(tD)) + 2*sqrt(tD/pi) - 1)
-    # Using the structural simplification from the PDF:
-    
-    # Placeholder for the exact scalar coefficient which depends on units
-    # Assuming V_s directly scales with F(t_D) loss term as per the paper's formulation
-    
-    # For a robust textbook implementation:
-    term1 = np.exp(t_D) * erfc(np.sqrt(t_D))
+    # G(t_D) is the true integral of F(t_D) for Marx-Langenheim
+    term1 = F_tD
     term2 = 2 * np.sqrt(t_D / np.pi)
     
-    # G(t_D) is the true integral of F(t_D) for Marx-Langenheim
     G_tD = term1 + term2 - 1.0
     
     # Heat capacity of overburden: M_ob = k_ob / alpha_ob
