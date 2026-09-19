@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-white text-ink antialiased; font-feature-settings: 'cv11', 'ss01'; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-1; }
+}
+
+@layer components {
+  .card { @apply bg-white border border-line rounded-2xl shadow-card; }
+  .num { font-variant-numeric: tabular-nums; }
+  .label { @apply text-[13px] text-ink-2; }
+  .btn { @apply inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors; }
+  .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600; }
+  .btn-ghost { @apply btn border border-line text-ink hover:bg-canvas; }
+  .th { @apply px-4 py-3 text-left text-xs font-medium text-ink-3 whitespace-nowrap; }
+  .td { @apply px-4 py-3 text-sm whitespace-nowrap num; }
+  .eq { @apply font-serif italic text-[15px] text-ink; }
+}
+
+.recharts-cartesian-axis-tick-value { font-size: 11px; fill: #8C8C9A; }
+.recharts-default-tooltip { border-radius: 12px !important; border: 1px solid #E9E9EF !important; box-shadow: 0 8px 24px rgba(22,22,29,.08); font-size: 12px; }
