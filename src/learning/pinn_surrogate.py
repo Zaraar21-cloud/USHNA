@@ -313,3 +313,36 @@ class AxisymmetricPINNSurrogate:
             raise EnergyAuditFailureError(msg)
 
         return report
+
+    def save(self, filepath: str) -> None:
+        """Saves surrogate network weights and physics configuration to disk."""
+        np.savez(
+            filepath,
+            W1=self.W1, b1=self.b1,
+            W2=self.W2, b2=self.b2,
+            W3=self.W3, b3=self.b3,
+            Q_nominal=self.Q_nominal,
+            T_R=self.T_R, T_s=self.T_s,
+            rho=self.rho, cp=self.cp, k=self.k,
+            r_w=self.r_w, r_max=self.r_max, h=self.h
+        )
+
+    def load(self, filepath: str) -> 'AxisymmetricPINNSurrogate':
+        """Loads surrogate weights and configuration from disk."""
+        data = np.load(filepath)
+        self.W1 = data['W1']
+        self.b1 = data['b1']
+        self.W2 = data['W2']
+        self.b2 = data['b2']
+        self.W3 = data['W3']
+        self.b3 = data['b3']
+        self.Q_nominal = float(data['Q_nominal'])
+        self.T_R = float(data['T_R'])
+        self.T_s = float(data['T_s'])
+        self.rho = float(data['rho'])
+        self.cp = float(data['cp'])
+        self.k = float(data['k'])
+        self.r_w = float(data['r_w'])
+        self.r_max = float(data['r_max'])
+        self.h = float(data['h'])
+        return self

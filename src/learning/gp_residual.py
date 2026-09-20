@@ -221,3 +221,33 @@ class BoundedGPResidualModel:
             bound_active=bound_active,
             diagnostic_alert=diagnostic
         )
+
+    def save(self, filepath: str) -> None:
+        """Serializes fitted GP hyperparameters, training data, and Cholesky weights to disk."""
+        if not self.is_fitted:
+            raise RuntimeError("Cannot save an unfitted GP model.")
+        np.savez(
+            filepath,
+            X_train=self.X_train,
+            y_residual_train=self.y_residual_train,
+            lengthscale=self.lengthscale,
+            sigma_f=self.sigma_f,
+            noise_variance=self.noise_variance,
+            max_residual_fraction=self.max_residual_fraction,
+            L_chol=self.L_chol,
+            alpha_weights=self.alpha_weights
+        )
+
+    def load(self, filepath: str) -> 'BoundedGPResidualModel':
+        """Loads serialized GP hyperparameters and weights from disk."""
+        data = np.load(filepath)
+        self.X_train = data['X_train']
+        self.y_residual_train = data['y_residual_train']
+        self.lengthscale = data['lengthscale']
+        self.sigma_f = float(data['sigma_f'])
+        self.noise_variance = float(data['noise_variance'])
+        self.max_residual_fraction = float(data['max_residual_fraction'])
+        self.L_chol = data['L_chol']
+        self.alpha_weights = data['alpha_weights']
+        self.is_fitted = True
+        return self
