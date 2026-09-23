@@ -17,6 +17,9 @@ def test_marx_langenheim():
     
     assert V_s > 0, "Heated volume should be positive"
     assert r_h > 0, "Heated radius should be positive"
+    # Heat left in the zone (G(t_D)/t_D) must be a plausible fraction of injected heat
+    stored_fraction = M_R * delta_T * V_s / (Q_i * t)
+    assert 0.5 < stored_fraction < 1.0, f"Heated-zone efficiency {stored_fraction:.4f} not physical"
 
 def test_boberg_lantz():
     T_R = 320.0  # K (approx 47 C)

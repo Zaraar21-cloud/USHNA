@@ -55,7 +55,8 @@ def everted_gibbs_downhole_card(
     youngs_modulus: float = 2.07e11,
     damping_c: float = 0.15,
     sound_speed_a: float = 4900.0,
-    n_harmonics: int = 10
+    n_harmonics: int = 10,
+    spm: float = 6.0
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Inverts surface dynamometer card (u_surf, f_surf) to downhole pump card (u_pump, f_pump)
@@ -68,7 +69,8 @@ def everted_gibbs_downhole_card(
     - damping_c: Rod damping coefficient [1/s]
     - sound_speed_a: Acoustic velocity in steel rod [m/s] (~4900 m/s)
     - n_harmonics: Cutoff harmonics for low-pass noise filtering
-    
+    - spm: Pumping speed [strokes/min]; sets the real angular frequency of the card
+
     Returns:
     - u_pump: Downhole pump displacement array [m]
     - f_pump: Downhole pump load array [N]
@@ -78,9 +80,8 @@ def everted_gibbs_downhole_card(
     rod_weight = rod_area * depth_m * rod_density * 9.81
     EA = youngs_modulus * rod_area
 
-    # Center and scale time
-    t = np.linspace(0, 1, N, endpoint=False)
-    omega = 2.0 * np.pi  # Normalized fundamental angular frequency
+    # One card = one stroke period of 60/spm seconds
+    omega = 2.0 * np.pi * spm / 60.0  # Fundamental angular frequency [rad/s]
 
     # Compute Fourier coefficients of surface displacement u_surf
     # u(0, t) = u0 + sum(un_cos * cos(n omega t) + un_sin * sin(n omega t))
@@ -115,11 +116,9 @@ def everted_gibbs_downhole_card(
         f_pump_fft[n] = gamma_n * EA * u_fft[n] * sinh_term + f_fft[n] * cosh_term
 
     u_pump = np.fft.irfft(u_pump_fft, n=N) * N
+    # Baseline (mean surface load - rod weight) is already carried by f_pump_fft[0].
+    # Negative values are real: the pump end is in compression.
     f_pump = np.fft.irfft(f_pump_fft, n=N) * N
-
-    # Downhole load baseline adjust (add fluid hydrostatic load)
-    f_pump = f_pump + (np.mean(f_surf) - rod_weight * 0.8)
-    f_pump = np.maximum(f_pump, 0.0)
 
     return u_pump, f_pump
 
@@ -220,16 +219,16 @@ def synthesize_pump_card(
     N = len(u_norm)
     f_sim = np.zeros(N)
 
-    # Distinguish upstroke vs downstroke
-    # u_norm follows 0 -> 1 (upstroke) and 1 -> 0 (downstroke)
-    mid = N // 2
-    u_up = u_norm[:mid]
-    u_down = u_norm[mid:]
+    # Distinguish upstroke vs downstroke from the direction of motion,
+    # so the card may start at any phase of the stroke
+    up_mask = np.gradient(u_norm) >= 0
+    u_up = u_norm[up_mask]
+    u_down = u_norm[~up_mask]
 
     # Upstroke: traveling valve closes, standing valve opens -> fluid lifted
     # Leakage causes load decay during upstroke
     up_load = f_max - leakage * (f_max - f_min) * (1.0 - u_up)
-    f_sim[:mid] = up_load
+    f_sim[up_mask] = up_load
 
     # Downstroke: traveling valve opens when chamber pressure exceeds tubing pressure
     # If gas is present: polytropic compression P * V^1.2 = C -> load drops gradually
@@ -255,7 +254,7 @@ def synthesize_pump_card(
             else:
                 down_load[i] = f_min + leakage * (f_max - f_min)
 
-    f_sim[mid:] = down_load
+    f_sim[~up_mask] = down_load
 
     if tagging:
         # Mechanical tag spike near bottom of stroke
@@ -280,13 +279,15 @@ class InverseFaultDiagnosis:
         f_surf: np.ndarray,
         depth_m: float = 650.0,
         intake_pressure_bar: float = 12.0,
-        bubble_point_bar: float = 20.0
+        bubble_point_bar: float = 20.0,
+        spm: float = 6.0
     ) -> MechanisticDiagnosis:
         """
         Runs complete inverse analysis on a single measured pump stroke.
+        Confidence is the card-fit quality: 1 - RMSE / (pump load range), clipped to [0, 1].
         """
         # 1. Invert to downhole card
-        u_pump, f_pump = everted_gibbs_downhole_card(u_surf, f_surf, depth_m=depth_m)
+        u_pump, f_pump = everted_gibbs_downhole_card(u_surf, f_surf, depth_m=depth_m, spm=spm)
 
         # 2. Extract physics features
         features = extract_card_features(u_surf, f_surf, u_pump, f_pump)
@@ -315,6 +316,7 @@ class InverseFaultDiagnosis:
 
         fit_fillage, fit_gas, fit_leak = res.x
         rmse = float(np.sqrt(res.fun))
+        confidence = float(np.clip(1.0 - rmse / max(f_max - f_min, 1e-3), 0.0, 1.0))
 
         # Check for mechanical tagging: abrupt impact spike at bottom of stroke
         grad = np.abs(np.gradient(f_pump))
@@ -330,12 +332,10 @@ class InverseFaultDiagnosis:
 
         if tagging_detected:
             fault_type = "MECHANICAL_TAGGING"
-            confidence = 0.92
             desc = f"Downhole tag detected at bottom of stroke. Risk of rod buckling and severe fatigue."
             remedy = "Adjust polished rod spacing/clamp immediately to raise plunger clearance."
         elif fit_fillage < 0.85 and intake_below_pb and fit_gas >= 0.15:
             fault_type = "GAS_INTERFERENCE"
-            confidence = 0.90
             desc = (
                 f"Fillage {fit_fillage*100:.1f}%; best-fit gas void fraction {fit_gas:.2f}; "
                 f"pump intake pressure ({intake_pressure_bar:.1f} bar) below bubble point "
@@ -344,7 +344,6 @@ class InverseFaultDiagnosis:
             remedy = "Increase casing backpressure or optimize pump intake submergence to suppress free gas."
         elif fit_fillage < 0.85 and (not intake_below_pb or fit_gas < 0.15):
             fault_type = "FLUID_POUND"
-            confidence = 0.88
             desc = (
                 f"Fillage {fit_fillage*100:.1f}%; sharp downstroke impact with low gas cushioning "
                 f"({fit_gas*100:.1f}% gas). Severe compressive shockwave on rod string."
@@ -352,12 +351,10 @@ class InverseFaultDiagnosis:
             remedy = "Slow down pump SPM (Strokes Per Minute) or enable asymmetric slow downstroke."
         elif fit_leak > 0.18:
             fault_type = "VALVE_LEAKAGE"
-            confidence = 0.85
             desc = f"Traveling/Standing valve slippage estimated at {fit_leak*100:.1f}%. Volumetric efficiency degraded."
             remedy = "Schedule valve replacement and flush solids from ball and seat."
         else:
             fault_type = "NORMAL_PUMPING"
-            confidence = 0.95
             desc = f"Full barrel operation (fillage {fit_fillage*100:.1f}%). Minimal gas and zero tagging."
             remedy = "Maintain current operating envelope."
 

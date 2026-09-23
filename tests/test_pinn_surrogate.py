@@ -49,20 +49,17 @@ def test_pinn_energy_balance_audit_pass():
     """Verifies that a physically compliant surrogate passes the mandatory energy audit."""
     pinn = AxisymmetricPINNSurrogate()
 
-    # Realistic injection parameters: 1 MW heat rate for 10 days, 3 days soak
-    Q_steam = 1.0e6  # Watts
-    t_inj = 10 * 86400.0
-    t_soak = 3 * 86400.0
-
+    # Realistic injection parameters: 1 MW heat rate for 10 days
     report = pinn.audit_energy_balance(
-        Q_steam_rate_watts=Q_steam,
-        injection_time_sec=t_inj,
-        soak_time_sec=t_soak,
-        max_error_fraction=0.10
+        Q_steam_rate_watts=1.0e6,
+        injection_time_sec=10 * 86400.0,
+        max_error_fraction=0.05
     )
 
     assert report.passed is True
-    assert report.imbalance_percentage <= 10.0
+    assert report.imbalance_percentage <= 5.0
+    # Most heat is still in the zone after 10 days; loss is not a catch-all
+    assert report.enthalpy_stored_joules > 0.5 * report.enthalpy_injected_joules
     assert pinn.is_audited is True
     assert "PASSED" in report.audit_message
 
@@ -74,14 +71,14 @@ def test_pinn_energy_balance_audit_rejection():
     is strictly rejected and raises EnergyAuditFailureError.
     """
     pinn = AxisymmetricPINNSurrogate()
+    # A surrogate that stores no heat at all must be rejected
+    pinn.predict_temperature = lambda r, z, t: np.full(np.size(r), pinn.T_R)
 
-    # Set strict threshold that cannot be satisfied by uncalibrated approximation
     with pytest.raises(EnergyAuditFailureError) as exc_info:
         pinn.audit_energy_balance(
             Q_steam_rate_watts=1.0e6,
             injection_time_sec=86400.0 * 5,
-            soak_time_sec=86400.0 * 2,
-            max_error_fraction=0.0001  # Absurdly tight 0.01% error limit
+            max_error_fraction=0.05
         )
 
     assert "REJECTED" in str(exc_info.value)

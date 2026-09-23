@@ -115,3 +115,56 @@ def test_pipeline_fmi_rod_float_response():
     assert "Reduce SPM" in card.recommendation
     assert "Float Margin Index" in card.why
     assert "(S*N)_max proportional to 1/mu" in card.governing_relation
+
+
+def _stroke():
+    t = np.linspace(0, 2 * np.pi, 100)
+    return 1.25 * (1.0 - np.cos(t)), 38000.0 + 14000.0 * np.sin(t)
+
+
+def test_pipeline_gp_refits_on_accumulated_history():
+    pipeline = USHNAPipeline(seed=42)
+    u, f = _stroke()
+    for day in (5.0, 10.0, 15.0):
+        pipeline.process_telemetry_step(day, 380.0, 30.0, u, f)
+    assert len(pipeline.gp_residual.X_train) == 3
+
+
+def test_cycle_status_withheld_when_physics_cannot_match_measurement():
+    """Measured 32 m3/d vs a physics rate below 1 m3/d saturates the GP bound."""
+    pipeline = USHNAPipeline(seed=42)
+    u, f = _stroke()
+    result = pipeline.process_telemetry_step(25.0, 380.0, 32.0, u, f)
+    assert result['gp_output'].bound_active
+    assert "withheld" in result['explainability_card'].cycle_status
+
+
+def test_cycle_status_projects_cutoff_from_ensemble():
+    """When measurement matches the physics model, the cut-off is projected, not hardcoded."""
+    pipeline = USHNAPipeline(seed=42, q_cutoff_m3day=0.66)
+    u, f = _stroke()
+    nominal = np.array([pipeline.enkf.specs[n].nominal for n in pipeline.enkf.param_names])
+    ctx = {**pipeline.well_context, 't_days': 25.0}
+    T_model, q_model = pipeline.enkf.forward_observation_operator(nominal, ctx)
+    result = pipeline.process_telemetry_step(25.0, T_model, q_model, u, f)
+    status = result['explainability_card'].cycle_status
+    assert "projected at day" in status or "No rate cut-off" in status
+    assert "58" not in status
+
+
+def test_fmi_recommendation_restores_limit():
+    """The recommended SPM is solved from FMI(v) = 0.15, so it must restore the margin."""
+    import re
+    pipeline = USHNAPipeline(seed=42)
+    t = np.linspace(0, 2 * np.pi, 100)
+    u_surf = 1.25 * (1.0 - np.cos(t))
+    f_surf = 35000.0 + 10000.0 * np.sin(t)
+    result = pipeline.process_telemetry_step(
+        65.0, 321.0, 8.0, u_surf, f_surf, spm_current=6.5, intake_pressure_bar=8.0
+    )
+    card = result['explainability_card']
+    assert result['fmi'] < 0.15
+    match = re.search(r"FMI -?[\d.]+ -> (-?[\d.]+)", card.expected_effect)
+    assert match, card.expected_effect
+    assert float(match.group(1)) >= 0.15
+    assert "ensemble members agree" in card.confidence

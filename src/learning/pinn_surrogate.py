@@ -2,18 +2,23 @@
 Physics-Informed Neural Network (PINN) Surrogate for USHNA.
 Tier 3 of the Learning Layer (Section 5.3).
 
-Fast, differentiable surrogate for 2D axisymmetric reservoir thermal field T(r, z, t):
-1. Solves the 2D radial-vertical heat equation:
-   rho * Cp * dT/dt - [1/r * d/dr(k * r * dT/dr) + d/dz(k * dT/dz)] = q
-2. Enforces Energy-Balance Closure Audit Gate (Eq 8):
-   Any candidate network that violates global energy conservation by > 5% is
-   STRICTLY REJECTED and prevented from reaching production.
-3. Delivers < 1 ms inference and analytic gradients for gradient-based CSS design.
+Fast surrogate for the 2D axisymmetric reservoir thermal field T(r, z, t)
+during steam injection:
+1. Baseline: a smooth radial profile carrying exactly the Marx-Langenheim
+   heated-zone enthalpy at time t.
+2. Correction: an MLP head (inputs r, z, t) that perturbs the baseline by at
+   most +/-2.5%. Its output layer starts at zero, so an untrained surrogate
+   IS the Marx-Langenheim baseline. compute_pde_residual() is the loss a
+   training loop would minimize; no training loop exists yet.
+3. Energy-Balance Closure Audit Gate (Eq 8): the surrogate's integrated enthalpy
+   plus Marx-Langenheim over/underburden loss must match injected enthalpy
+   within tolerance, or the surrogate is rejected.
 """
 
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
+from scipy.integrate import trapezoid
 
 from src.physics.reservoir import marx_langenheim_heated_volume
 
@@ -50,6 +55,8 @@ class AxisymmetricPINNSurrogate:
         rho_res: float = 2200.0,
         cp_res: float = 1100.0,
         k_res: float = 1.8,
+        k_ob: float = 2.0,
+        alpha_ob: float = 1e-6,
         seed: int = 42
     ):
         self.r_w = r_w
@@ -61,6 +68,8 @@ class AxisymmetricPINNSurrogate:
         self.cp = cp_res
         self.k = k_res
         self.alpha = k_res / (rho_res * cp_res)  # Thermal diffusivity m^2/s
+        self.k_ob = k_ob          # Overburden conductivity (W/m K)
+        self.alpha_ob = alpha_ob  # Overburden diffusivity (m^2/s)
         self.Q_nominal: float = 1.0e6
 
         self.rng = np.random.default_rng(seed)
@@ -75,7 +84,6 @@ class AxisymmetricPINNSurrogate:
         # Glorot uniform initialization
         scale1 = np.sqrt(2.0 / (3 + hidden_dim))
         scale2 = np.sqrt(2.0 / (hidden_dim + hidden_dim))
-        scale3 = np.sqrt(2.0 / (hidden_dim + 1))
 
         self.W1 = self.rng.normal(0, scale1, (3, hidden_dim))
         self.b1 = np.zeros(hidden_dim)
@@ -83,7 +91,8 @@ class AxisymmetricPINNSurrogate:
         self.W2 = self.rng.normal(0, scale2, (hidden_dim, hidden_dim))
         self.b2 = np.zeros(hidden_dim)
 
-        self.W3 = self.rng.normal(0, scale3, (hidden_dim, 1))
+        # Zero output layer: sigmoid(0) = 0.5 -> zero correction until trained
+        self.W3 = np.zeros((hidden_dim, 1))
         self.b3 = np.zeros(1)
 
     def _forward_raw(self, coords: np.ndarray) -> np.ndarray:
@@ -132,44 +141,24 @@ class AxisymmetricPINNSurrogate:
 
         coords = np.column_stack([r_b, z_b, t_b])
 
-        # Convective thermal radius from Marx-Langenheim energy scaling
-        M_R = self.rho * self.cp
-        delta_T_inj = max(self.T_s - self.T_R, 1.0)
-        t_pos = np.maximum(t_b, 3600.0)
+        # Marx-Langenheim heated radius at time t (vectorized over t)
+        _, r_h = marx_langenheim_heated_volume(
+            Q_i=self.Q_nominal,
+            M_R=self.rho * self.cp,
+            delta_T=max(self.T_s - self.T_R, 1.0),
+            k_ob=self.k_ob,
+            alpha_ob=self.alpha_ob,
+            h=self.h,
+            t=np.maximum(t_b, 3600.0)
+        )
+        # Smooth front exp(-(r/a)^4): integral of 2*pi*r*exp(-(r/a)^4) dr = pi*a^2*sqrt(pi)/2,
+        # so a = r_h*sqrt(2/sqrt(pi)) carries exactly the M-L heated-zone enthalpy.
+        a = np.maximum(r_h, 0.5) * np.sqrt(2.0 / np.sqrt(np.pi))
+        phys_profile = np.exp(-(r_b / a)**4)
 
-        # Thermal front radius at time t
-        if np.all(t_pos == t_pos[0]):
-            _, r_h_val = marx_langenheim_heated_volume(
-                Q_i=self.Q_nominal,
-                M_R=M_R,
-                delta_T=delta_T_inj,
-                k_ob=2.0,
-                alpha_ob=1e-6,
-                h=self.h,
-                t=float(t_pos[0])
-            )
-            r_h = float(max(r_h_val, 0.5))
-        else:
-            r_h = np.zeros_like(t_pos)
-            for idx, tp in enumerate(t_pos):
-                _, rh_i = marx_langenheim_heated_volume(
-                    Q_i=self.Q_nominal,
-                    M_R=M_R,
-                    delta_T=delta_T_inj,
-                    k_ob=2.0,
-                    alpha_ob=1e-6,
-                    h=self.h,
-                    t=float(tp)
-                )
-                r_h[idx] = max(rh_i, 0.5)
-
-        r_dist = np.maximum(r_b - self.r_w, 0.0)
-        phys_decay = np.exp(-(r_dist / r_h)**4)
-        z_factor = np.sin(np.pi * np.clip(z_b / self.h, 0.01, 0.99))**0.2
-
-        # Neural network learned perturbation on top of physical baseline
+        # Neural network correction on top of the physical baseline (bounded to +/-2.5%)
         theta_net = self._forward_raw(coords).ravel()
-        theta = (phys_decay * z_factor) * (1.0 + 0.05 * (theta_net - 0.5))
+        theta = phys_profile * (1.0 + 0.05 * (theta_net - 0.5))
         theta = np.clip(theta, 0.0, 1.0)
 
         T_pred = self.T_R + (self.T_s - self.T_R) * theta
@@ -241,40 +230,39 @@ class AxisymmetricPINNSurrogate:
         self,
         Q_steam_rate_watts: float,
         injection_time_sec: float,
-        soak_time_sec: float,
         max_error_fraction: float = 0.05
     ) -> EnergyAuditReport:
         """
-        Mandatory Verification Gate: Energy-Balance Closure Check.
-        Rejects surrogate if enthalpy conservation error > max_error_fraction (5%).
+        Mandatory Verification Gate: Energy-Balance Closure Check at end of injection.
+        Rejects surrogate if |E_stored + E_lost - E_injected| / E_injected > max_error_fraction.
+
+        E_stored is integrated from the surrogate's own temperature field; E_lost is the
+        Marx-Langenheim over/underburden loss, independent of the surrogate.
         """
+        # ponytail: audits end of injection only (where Marx-Langenheim holds);
+        # soak/production needs a Boberg-Lantz loss term here.
         # 1. Total enthalpy injected into formation
         self.Q_nominal = Q_steam_rate_watts
-        total_time = injection_time_sec + soak_time_sec
         E_injected = Q_steam_rate_watts * injection_time_sec
+        M_R = self.rho * self.cp
+        delta_T_inj = max(self.T_s - self.T_R, 1.0)
 
-        # 2. Integrate enthalpy stored in reservoir volume at end of cycle:
-        # E_stored = integral 2*pi*r * rho * cp * (T(r,z,t) - T_R) dr dz
-        r_grid = np.linspace(self.r_w, self.r_max, 50)
-        z_grid = np.linspace(0.0, self.h, 20)
+        # 2. Integrate surrogate enthalpy: E_stored = integral 2*pi*r * M_R * (T - T_R) dr dz
+        r_grid = np.linspace(self.r_w, self.r_max, 400)
+        z_grid = np.linspace(0.0, self.h, 21)
         R_mesh, Z_mesh = np.meshgrid(r_grid, z_grid)
+        T_mesh = self.predict_temperature(
+            R_mesh.ravel(), Z_mesh.ravel(), injection_time_sec
+        ).reshape(R_mesh.shape)
+        integrand = 2.0 * np.pi * R_mesh * M_R * (T_mesh - self.T_R)
+        E_stored = float(trapezoid(trapezoid(integrand, r_grid, axis=1), z_grid))
 
-        T_mesh = self.predict_temperature(R_mesh.ravel(), Z_mesh.ravel(), total_time).reshape(R_mesh.shape)
-        delta_T = T_mesh - self.T_R
-
-        # Volume element dV = 2*pi*r dr dz
-        dr = r_grid[1] - r_grid[0]
-        dz = z_grid[1] - z_grid[0]
-        integrand = 2.0 * np.pi * R_mesh * self.rho * self.cp * delta_T
-        E_stored = float(np.sum(integrand) * dr * dz)
-
-        # 3. Conductive heat loss to overburden and underburden
-        # Cumulative loss modeled via Ramey/Marx conductive integral
-        k_ob = 2.0
-        alpha_ob = 1e-6
-        t_D = (4.0 * k_ob * total_time) / (self.rho * self.cp * self.h**2 * alpha_ob)
-        loss_fraction = 1.0 - (1.0 / (1.0 + 0.5 * np.sqrt(max(t_D, 1e-4))))
-        E_lost = E_injected * loss_fraction
+        # 3. Over/underburden conductive loss: everything M-L says left the heated zone
+        V_ml, _ = marx_langenheim_heated_volume(
+            Q_i=Q_steam_rate_watts, M_R=M_R, delta_T=delta_T_inj,
+            k_ob=self.k_ob, alpha_ob=self.alpha_ob, h=self.h, t=injection_time_sec
+        )
+        E_lost = float(E_injected - M_R * delta_T_inj * V_ml)
 
         # Balance check: E_stored + E_lost ~ E_injected
         accounted_enthalpy = E_stored + E_lost
@@ -324,6 +312,7 @@ class AxisymmetricPINNSurrogate:
             Q_nominal=self.Q_nominal,
             T_R=self.T_R, T_s=self.T_s,
             rho=self.rho, cp=self.cp, k=self.k,
+            k_ob=self.k_ob, alpha_ob=self.alpha_ob,
             r_w=self.r_w, r_max=self.r_max, h=self.h
         )
 
@@ -342,6 +331,9 @@ class AxisymmetricPINNSurrogate:
         self.rho = float(data['rho'])
         self.cp = float(data['cp'])
         self.k = float(data['k'])
+        self.alpha = self.k / (self.rho * self.cp)
+        self.k_ob = float(data['k_ob'])
+        self.alpha_ob = float(data['alpha_ob'])
         self.r_w = float(data['r_w'])
         self.r_max = float(data['r_max'])
         self.h = float(data['h'])

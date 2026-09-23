@@ -19,8 +19,8 @@ def marx_langenheim_heated_volume(Q_i, M_R, delta_T, k_ob, alpha_ob, h, t):
     - V_s: Heated volume (m^3)
     - r_h: Heated zone radius (m)
     """
-    # Dimensionless time
-    t_D = (4 * k_ob * t) / (M_R * h**2 * alpha_ob)
+    # Dimensionless time t_D = 4 * M_ob^2 * alpha_ob * t / (M_R^2 * h^2), with M_ob = k_ob / alpha_ob
+    t_D = (4 * k_ob**2 * t) / (alpha_ob * M_R**2 * h**2)
     
     # F(t_D) = e^(t_D) * erfc(sqrt(t_D))
     # Use erfcx(x) = exp(x^2)*erfc(x) to avoid overflow for large t_D
@@ -33,11 +33,8 @@ def marx_langenheim_heated_volume(Q_i, M_R, delta_T, k_ob, alpha_ob, h, t):
     term2 = 2 * np.sqrt(t_D / np.pi)
     
     G_tD = term1 + term2 - 1.0
-    
-    # Heat capacity of overburden: M_ob = k_ob / alpha_ob
-    M_ob = k_ob / alpha_ob
-    
-    # Heated area A(t)
+
+    # Heated area A(t); G(t_D)/t_D is the fraction of injected heat still in the zone
     A_t = (Q_i / (delta_T * h * M_R)) * t * (G_tD / t_D)
     
     V_s = A_t * h
