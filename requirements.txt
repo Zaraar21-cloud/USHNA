@@ -11,3 +11,4 @@ casadi>=3.6.3
 fastapi>=0.103.0
 pydantic>=2.4.0
 uvicorn>=0.23.2
+pytest>=7.4

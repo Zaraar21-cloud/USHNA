@@ -39,8 +39,10 @@ PARAM_SPECS: Dict[str, ParameterSpec] = {
     'skin': ParameterSpec('skin', '-', 2.0, 0.0, 25.0, 1.0, 'Wellbore skin factor'),
     'k_ob': ParameterSpec('k_ob', 'W/m K', 2.0, 0.5, 5.0, 0.4, 'Overburden thermal conductivity'),
     'c_rod': ParameterSpec('c_rod', '1/s', 0.1, 0.01, 1.0, 0.05, 'Rod damping coefficient'),
-    'A_visc': ParameterSpec('A_visc', '-', 9.5, 8.0, 11.0, 0.2, 'Walther parameter A'),
-    'B_visc': ParameterSpec('B_visc', '-', 3.6, 2.8, 4.5, 0.15, 'Walther parameter B'),
+    # Walther is double-exponential: std 0.02 on A is ~+/-20% viscosity per sigma
+    # (lab-PVT-fit level). 0.2 was ~10x per sigma and swamped the rate statistics.
+    'A_visc': ParameterSpec('A_visc', '-', 9.5, 8.0, 11.0, 0.02, 'Walther parameter A'),
+    'B_visc': ParameterSpec('B_visc', '-', 3.6, 2.8, 4.5, 0.01, 'Walther parameter B'),
     'eta_slip': ParameterSpec('eta_slip', 'fraction', 0.05, 0.0, 0.5, 0.02, 'Pump slippage fraction')
 }
 
@@ -189,8 +191,22 @@ class EnsembleKalmanFilter:
         y_obs = np.asarray(y_obs)
         n_obs = len(y_obs)
 
-        # 1. Add process noise to parameters
+        # Physical covariance localization (Section 5.1):
+        # Prevents spurious cross-updates on PVT (A, B) and rod mechanics (c)
+        # when only assimilating macro temperature and flow rate
+        if localization_mask is None:
+            localization_mask = np.ones((self.n_params, n_obs))
+            if n_obs == 2:
+                # c_rod needs a dynamometer card; A_visc/B_visc are PVT invariants
+                for name in ('c_rod', 'A_visc', 'B_visc'):
+                    if name in self.param_names:
+                        localization_mask[self.param_names.index(name), :] = 0.0
+
+        # 1. Add process noise to parameters the observations can correct.
+        # Noise on fully localized parameters would random-walk them unchecked.
         for i, name in enumerate(self.param_names):
+            if not np.any(localization_mask[i]):
+                continue
             spec = self.specs[name]
             dq = self.rng.normal(0, process_noise_std * spec.nominal, size=self.n_ensemble)
             self.ensemble[i, :] = np.clip(
@@ -222,16 +238,6 @@ class EnsembleKalmanFilter:
         innovation_cov = C_yy + R_cov
         # Use pseudo-inverse or solve for numerical stability
         K_gain = C_xy @ np.linalg.pinv(innovation_cov)
-
-        # Physical covariance localization (Section 5.1):
-        # Prevents spurious cross-updates on PVT (A, B) and rod mechanics (c)
-        # when only assimilating macro temperature and flow rate
-        if localization_mask is None:
-            localization_mask = np.ones((self.n_params, n_obs))
-            if n_obs == 2:
-                localization_mask[3, :] = 0.0  # c_rod (requires dynamometer card)
-                localization_mask[4, :] = 0.0  # A_visc (PVT invariant)
-                localization_mask[5, :] = 0.0  # B_visc (PVT invariant)
         K_gain = K_gain * localization_mask
 
         # 5. Perturbed observations and state update

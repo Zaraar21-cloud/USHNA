@@ -1,9 +1,9 @@
 {
   "passed": true,
   "enthalpy_injected_joules": 864000000000.0,
-  "enthalpy_stored_joules": 3912112802.3608203,
-  "conductive_loss_joules": 853371221013.3136,
-  "imbalance_percentage": 0.7773919194821252,
+  "enthalpy_stored_joules": 787093342366.7302,
+  "conductive_loss_joules": 76642125519.51416,
+  "imbalance_percentage": 0.0306171427957888,
   "max_allowable_imbalance": 5.0,
-  "audit_message": "PASSED: Energy balance closure within specification (0.78% error <= 5.0% limit). Surrogate approved for CSS optimization."
+  "audit_message": "PASSED: Energy balance closure within specification (0.03% error <= 5.0% limit). Surrogate approved for CSS optimization."
 }

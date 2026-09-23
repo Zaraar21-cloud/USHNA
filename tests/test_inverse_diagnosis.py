@@ -78,7 +78,8 @@ def test_mechanistic_fault_diagnosis_gas_vs_pound():
 
 def test_synthesized_pump_card_modes():
     """Directly tests downhole card synthesis under distinct physical fault regimes."""
-    u_norm = np.linspace(0, 1, 100)
+    # One full stroke: bottom -> top -> bottom
+    u_norm = 0.5 * (1.0 - np.cos(np.linspace(0, 2 * np.pi, 100)))
     
     # 1. Full barrel
     f_full = synthesize_pump_card(u_norm, fillage=1.0, gas_void=0.0, leakage=0.0, tagging=False)

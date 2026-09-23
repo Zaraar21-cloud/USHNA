@@ -87,3 +87,30 @@ def test_enkf_asphaltene_drift_detection():
     diag = enkf.diagnose_well_health()
     assert 'asphaltene_alert' in diag
     assert "asphaltene" in diag['asphaltene_alert'].lower()
+
+
+def test_enkf_twin_experiment_matches_observed_rate():
+    """
+    Twin experiment: with observations from the forward model itself, the posterior
+    ensemble must reproduce the observed rate. Guards against unobserved Walther A/B
+    spread swamping the rate statistics.
+    """
+    enkf = EnsembleKalmanFilter(n_ensemble=40, seed=42)
+    rng = np.random.default_rng(0)
+    true_params = np.array([22000.0, 5.0, 2.4, 0.1, 9.5, 3.6, 0.08])
+    obs_std = np.array([1.5, 0.02])
+    ia, ib = enkf.param_names.index('A_visc'), enkf.param_names.index('B_visc')
+    prior_A_std = enkf.ensemble[ia].std()
+
+    for day in range(1, 41):
+        ctx = {'t_days': float(day)}
+        y_obs = enkf.forward_observation_operator(true_params, ctx) + rng.normal(0, obs_std)
+        enkf.update(y_obs, np.diag(obs_std**2), ctx, t_current=float(day))
+
+    ctx = {'t_days': 40.0}
+    q_true = enkf.forward_observation_operator(true_params, ctx)[1]
+    q_ens = np.mean([enkf.forward_observation_operator(enkf.ensemble[:, j], ctx)[1]
+                     for j in range(enkf.n_ensemble)])
+    assert abs(q_ens - q_true) / q_true < 0.05, f"Posterior rate {q_ens:.3f} vs truth {q_true:.3f}"
+    # Localized parameters get no process noise, so their spread must not grow
+    assert enkf.ensemble[ia].std() <= prior_A_std + 1e-12

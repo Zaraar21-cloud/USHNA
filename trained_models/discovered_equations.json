@@ -3,8 +3,8 @@
     "equation": "mu(T, asp) = 0.95 * (10^(10^(9.500 - 3.600*log10(T) + 0.0180*asp^1.10)) - 0.7)",
     "latex": "\\mu(T, \\text{asp}) = 0.95 \\cdot \\left[ 10^{10^{9.500 - 3.600\\log_{10}(T) + 0.0180 \\cdot \\text{asp}^{1.10}}} - 0.7 \\right]",
     "r2_score": 1.0,
-    "rmse": 4.134974856678909e-06,
-    "signoff": "Baghewala Field Correlation: Viscosity fits modified Walther law with R^2 = 1.0000. Asphaltene sensitivity exponent = 1.10."
+    "rmse": 2.1227887883663327e-06,
+    "signoff": "Fixed-form fit: viscosity data fits modified Walther law with R^2 = 1.0000. Asphaltene sensitivity exponent = 1.10."
   },
   "soak_efficiency": {
     "equation": "eta(t_soak, V_steam) = (1 - exp(-0.850 * (V_steam/1000)^1.05)) * exp(-0.0450 * t_soak)",

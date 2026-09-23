@@ -3,13 +3,14 @@ Symbolic Regression Engine for USHNA.
 Tier 4 of the Learning Layer (Section 5.4).
 
 The "Anti-Black-Box" Component.
-Discovers closed-form, human-readable algebraic formulas from data:
+Fits the coefficients of fixed, physics-motivated closed-form templates:
 1. Field-specific viscosity law: mu(T, asphaltene)
 2. Soak-time thermal efficiency: eta(t_soak, V_steam)
 3. Rod-failure hazard expression: H(delta_F, t_comp)
 
-Outputs literal, printable equations with units and confidence scores that can be
-signed off by a petroleum engineer and placed directly into an operating manual.
+The equation *forms* are chosen by hand; only their coefficients are learned.
+Free-form structure search (e.g. PySR, listed in requirements.txt) is not done here.
+Outputs printable equations with units and fit metrics for engineering review.
 """
 
 from dataclasses import dataclass
@@ -87,7 +88,8 @@ class SymbolicEquationDiscoverer:
         def func(coords, A, B, C, gamma):
             t_k, a_pct = coords
             rhs = A - B * np.log10(t_k) + C * (a_pct ** gamma)
-            kin = 10.0 ** (10.0 ** np.clip(rhs, -0.5, 2.5)) - 0.7
+            # Upper clip 2.47: 10**(10**2.47) ~ 1e295, below float64 overflow (~1.8e308)
+            kin = 10.0 ** (10.0 ** np.clip(rhs, -0.5, 2.47)) - 0.7
             return 0.95 * kin
 
         try:
@@ -132,7 +134,7 @@ class SymbolicEquationDiscoverer:
             complexity=8,
             eval_fn=eval_fn,
             signoff_statement=(
-                f"Baghewala Field Correlation: Viscosity fits modified Walther law with "
+                f"Fixed-form fit: viscosity data fits modified Walther law with "
                 f"R^2 = {r2:.4f}. Asphaltene sensitivity exponent = {gamma_f:.2f}."
             )
         )
