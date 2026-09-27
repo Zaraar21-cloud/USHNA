@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ReferenceArea } from 'recharts';
 import { Flame, Droplet, Target, Waves } from 'lucide-react';
-import { PageHeader, Card, StatRow, Eq, Legend, VIZ, AXIS, GRID, fmt } from '../components/ui';
+import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt } from '../components/ui';
 import { FIELD, WALTHER, viscosity, heatedRadius } from '../data/twin';
 
 const TABS = ['Thermal decline', 'Inflow', 'Heated zone', 'Viscosity law'];
@@ -12,7 +12,7 @@ export default function Reservoir({ ctx }) {
     <>
       <PageHeader
         title="Reservoir & CSS"
-        subtitle="Timescale: days to weeks. Owns steam volume, injection pressure, soak time and cut-off."
+        subtitle="How the steam-heated zone around the well cools after each injection, and how much oil it gives up as it does."
         tabs={TABS} tab={tab} onTab={setTab}
       />
       {tab === 'Thermal decline' && <Thermal s={ctx.s} />}
@@ -28,7 +28,7 @@ const dayMarker = (day) => <ReferenceLine x={day} stroke="#16161D" strokeDasharr
 function Thermal({ s }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Card title="Heated-zone temperature (Boberg–Lantz)" icon={Flame} className="lg:col-span-2" right={<Legend items={[['T̄ heated zone', VIZ.pink], ['T_pump', VIZ.orange], ['T_R', '#8C8C9A', true]]} />}>
+      <Card tour="thermal" title="Heated-zone temperature (Boberg–Lantz)" icon={Flame} className="lg:col-span-2" right={<Legend items={[['T̄ heated zone', VIZ.pink], ['T_pump', VIZ.orange], ['T_R', '#8C8C9A', true]]} />}>
         <div className="h-72">
           <ResponsiveContainer>
             <LineChart data={s.rows} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -40,12 +40,14 @@ function Thermal({ s }) {
               <ReferenceLine y={FIELD.T_R} stroke="#8C8C9A" strokeDasharray="4 3" />
               <ReferenceLine y={FIELD.T_onset} stroke={VIZ.yellow} strokeDasharray="4 3" label={{ value: 'asphaltene onset', position: 'insideBottomRight', fontSize: 11, fill: '#A16207' }} />
               <Line dataKey="Tbar" name="T̄" stroke={VIZ.pink} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line dataKey="Tpump" name="T_pump" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line dataKey="Tpump" name="Pump temp" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <Eq note="f_VD, f_HD: vertical and radial conduction unit solutions">T̄(t) = T_R + (T_s − T_R)·[f_VD·f_HD·(1 − δ)]</Eq>
+          <Eq note={<><Tex>{String.raw`f_{VD},\ f_{HD}`}</Tex>: vertical and radial conduction unit solutions. <Tex>\delta</Tex>: fraction of heat carried off by produced fluid.</>}>
+            {String.raw`\bar{T}(t) = T_R + (T_s - T_R)\, f_{VD}\, f_{HD}\,(1 - \delta)`}
+          </Eq>
           <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-ink-2">
             <b className="text-ink">δ is the whole economics of CSS in one coefficient.</b> Pumping faster cools the heated zone faster, so SPM and cut-off timing can't be optimised separately.
           </div>
@@ -85,8 +87,8 @@ function Inflow({ s }) {
         <p className="mt-3 text-sm text-ink-2">Early in the cycle, inflow is higher than the pump can lift. The flat stretch of the gross-lifted line is where pump capacity is the limit. After the lines meet, fillage drops and the fluid-pound constraint takes over.</p>
       </Card>
       <Card title="Radial composite inflow" icon={Waves}>
-        <Eq note="Hot inner annulus inside cold reservoir. μ_h ≪ μ_c reproduces the post-steam spike with no curve fitting.">
-          q_o = 2πk·k_ro·h·(P̄_R − P_wf) / (μ_h·ln(r_h/r_w) + μ_c·ln(r_e/r_h) + s)
+        <Eq note={<>Hot inner annulus inside cold reservoir. <Tex>{String.raw`\mu_h \ll \mu_c`}</Tex> reproduces the post-steam spike with no curve fitting.</>}>
+          {String.raw`q_o = \frac{2\pi k\, k_{ro}\, h\,(\bar{P}_R - P_{wf})}{\mu_h\left[\ln(r_h/r_w) + s\right] + \mu_c \ln(r_e/r_h)}`}
         </Eq>
         <div className="mt-3">
           <StatRow label="μ_h (heated zone)" value={fmt.n0(s.now.muH)} unit="cP" />
@@ -124,8 +126,8 @@ function HeatedZone({ s }) {
           </ResponsiveContainer>
         </div>
         <div className="mt-4">
-          <Eq note="G(t_D) = e^{t_D}·erfc√t_D + 2√(t_D/π) − 1. Heated radius grows roughly with √(steam), so steam volume has diminishing returns.">
-            A(t) = Q_i·M_R·h·G(t_D) / (4·k_ob·M_ob·ΔT),  t_D = 4·k_ob²·t / (M_R²·h²·α_ob)
+          <Eq note={<><Tex>{String.raw`G(t_D) = e^{t_D}\operatorname{erfc}\sqrt{t_D} + 2\sqrt{t_D/\pi} - 1`}</Tex>. Heated radius grows roughly with the square root of steam volume, so more steam has diminishing returns.</>}>
+            {String.raw`A(t) = \frac{Q_i\, M_R\, h\, \alpha_{ob}}{4\, k_{ob}^2\, \Delta T}\, G(t_D), \qquad t_D = \frac{4\, k_{ob}^2\, t}{M_R^2\, h^2\, \alpha_{ob}}`}
           </Eq>
         </div>
       </Card>
@@ -157,7 +159,7 @@ function Viscosity({ s }) {
             <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="T" type="number" domain={[40, 252]} {...AXIS} unit="°" />
-              <YAxis scale="log" domain={[10, 3000]} ticks={[10, 30, 100, 300, 1000, 3000]} {...AXIS} width={48} allowDataOverflow />
+              <YAxis scale="log" domain={[10, 30000]} ticks={[10, 100, 1000, 10000]} {...AXIS} width={48} allowDataOverflow />
               <Tooltip formatter={(v) => `${fmt.n0(v)} cP`} labelFormatter={(l) => `${l} °C`} />
               <ReferenceArea x1={40} x2={FIELD.T_onset} fill={VIZ.yellow} fillOpacity={0.15} label={{ value: 'T < T_onset: shear-thinning regime', position: 'insideTop', fontSize: 11, fill: '#A16207' }} />
               <ReferenceLine x={+s.now.Tpump.toFixed(1)} stroke={VIZ.orange} label={{ value: `T_pump ${fmt.n0(s.now.Tpump)} °C → ${fmt.n0(s.now.mu)} cP`, position: 'right', fontSize: 11, fill: '#B45309' }} />
@@ -167,7 +169,9 @@ function Viscosity({ s }) {
         </div>
       </Card>
       <Card title="ASTM D341 / Walther" icon={Waves}>
-        <Eq note="Fitted to Baghewala PVT. A and B are updated jointly by the EnKF from card, rate and temperature.">log₁₀ log₁₀(ν + 0.7) = A − B·log₁₀T</Eq>
+        <Eq note="Fitted to Oil India's published 10,000–13,000 cP at 50 °C and 14 cP at steam temperature. A and B are updated jointly by the EnKF from card, rate and temperature.">
+          {String.raw`\log_{10}\log_{10}(\nu + 0.7) = A - B\,\log_{10} T`}
+        </Eq>
         <div className="mt-3">
           <StatRow label="A" value={WALTHER.A.toFixed(3)} />
           <StatRow label="B" value={WALTHER.B.toFixed(3)} />

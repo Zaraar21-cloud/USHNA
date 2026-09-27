@@ -10,7 +10,8 @@ class SyntheticDataGenerator:
     def __init__(self, seed=42):
         np.random.seed(seed)
         # Heavy oil properties (Jodhpur Sandstone / Rajasthan)
-        self.visc_model = WaltherViscosityModel(A=9.5, B=3.6)
+        # Refit to Oil India's 10,000-13,000 cP @ 50 C (see DATA_SOURCES.md)
+        self.visc_model = WaltherViscosityModel(A=7.0393, B=2.5617)
         
     def generate_css_cycle(self, days=80):
         """
@@ -42,8 +43,9 @@ class SyntheticDataGenerator:
         base_rate = 50.0 # m^3/day
         q_o = base_rate * (mu_history[0] / mu_history)
         
-        # Add noise to flow rate
-        q_o_noisy = q_o + np.random.normal(0, 0.5, size=days)
+        # Flow-meter noise is a percentage of reading (2%), not a fixed m^3/d: the rate
+        # spans 50 -> ~0.1 m^3/d over a cycle at Baghewala viscosities.
+        q_o_noisy = q_o * (1 + np.random.normal(0, 0.02, size=days))
         
         # Collect data
         dataset = {

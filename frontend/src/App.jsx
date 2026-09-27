@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Shell from './components/Shell';
-import { WELLS, buildState, envelope, recommendations, designSpace, REQUIRED_FIELDS } from './data/twin';
+import { WELLS, FIELD, buildState, envelope, recommendations, designSpace, REQUIRED_FIELDS } from './data/twin';
 import Overview from './pages/Overview';
 import Reservoir from './pages/Reservoir';
 import Wellbore from './pages/Wellbore';
 import RodString from './pages/RodString';
-import Learning from './pages/Learning';
+import Learning, { LEARN_TABS } from './pages/Learning';
 import Recommendations from './pages/Recommendations';
 import SrpControl from './pages/SrpControl';
 import CssDesign from './pages/CssDesign';
@@ -25,11 +25,19 @@ class Boundary extends React.Component {
 
 const PAGES = { Overview, Reservoir, Wellbore, RodString, Learning, Recommendations, SrpControl, CssDesign, Telemetry, Traceability };
 
+// Wells not being animated/scrubbed keep their state, so Run cycle only recomputes one well per frame.
+const stateCache = new Map();
+const cachedState = (w, day, sp) => {
+  const k = `${w.id}|${day}|${sp ? `${sp.spm}|${sp.down}` : ''}`;
+  if (!stateCache.has(k)) stateCache.set(k, buildState(w, day, sp));
+  return stateCache.get(k);
+};
+
 const clock = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
 const SEED_LOG = [
-  { time: '09:12', well: 'BGW-11', requested: 'SPM 5.4 · down 100%', applied: 'SPM 3.9 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
-  { time: '07:40', well: 'BGW-15', requested: 'SPM 5.6 · down 100%', applied: 'SPM 5.0 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
+  { time: '09:12', well: 'BGW-11', requested: 'SPM 5.4 · down 100%', applied: 'SPM 3.5 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
+  { time: '07:40', well: 'BGW-15', requested: 'SPM 5.6 · down 100%', applied: 'SPM 4.4 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
   { time: '06:05', well: 'BGW-04', requested: 'SPM 7.2 · down 90%', applied: 'SPM 7.2 · down 90%', binding: null, action: 'accepted' },
 ];
 
@@ -46,6 +54,8 @@ export default function App() {
   const [days, setDays] = useState({});
   const [setpoints, setSetpoints] = useState({});
   const [log, setLog] = useState(SEED_LOG);
+  const [playing, setPlaying] = useState(false);
+  const [learnTab, setLearnTab] = useState(LEARN_TABS[0]);
 
   const well = WELLS.find((w) => w.id === wellId);
   const day = days[wellId] ?? well.day;
@@ -56,9 +66,17 @@ export default function App() {
   const recs = useMemo(() => recommendations(s, design), [s, design]);
   const shown = recs.filter((r) => REQUIRED_FIELDS.every((k) => r[k]));
   const fleet = useMemo(
-    () => WELLS.map((w) => buildState(w, days[w.id] ?? w.day, setpoints[w.id])),
-    [days, setpoints],
+    () => WELLS.map((w) => (w.id === wellId ? s : cachedState(w, days[w.id] ?? w.day, setpoints[w.id]))),
+    [s, wellId, days, setpoints],
   );
+
+  // Run cycle: animate day 0 → horizon in ~15 s so the page drives itself.
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => setDays((p) => ({ ...p, [wellId]: Math.min(FIELD.horizon, (p[wellId] ?? 0) + 1) })), 15000 / FIELD.horizon);
+    return () => clearInterval(id);
+  }, [playing, wellId]);
+  useEffect(() => { if (playing && day >= FIELD.horizon) setPlaying(false); }, [playing, day]);
 
   // Every setpoint goes through the safety envelope; every outcome is logged.
   function submit(req) {
@@ -71,9 +89,17 @@ export default function App() {
 
   const ctx = {
     s, well, day, design, recs: shown, suppressed: recs.length - shown.length, allRecs: recs, fleet, log,
-    setDay: (d) => setDays((p) => ({ ...p, [wellId]: d })),
-    resetDay: () => setDays((p) => { const { [wellId]: _, ...rest } = p; return rest; }),
-    selectWell: setWellId,
+    setDay: (d) => { setPlaying(false); setDays((p) => ({ ...p, [wellId]: d })); },
+    resetDay: () => { setPlaying(false); setDays((p) => { const { [wellId]: _, ...rest } = p; return rest; }); },
+    selectWell: (id) => { setPlaying(false); setWellId(id); },
+    playing,
+    learnTab,
+    setLearnTab,
+    runCycle: () => {
+      if (playing) return setPlaying(false);
+      setDays((p) => ({ ...p, [wellId]: 0 }));
+      setPlaying(true);
+    },
     submit,
     go,
   };

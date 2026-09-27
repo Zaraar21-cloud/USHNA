@@ -24,7 +24,7 @@ def test_enkf_initialization():
 
 def test_enkf_forward_operator():
     enkf = EnsembleKalmanFilter(n_ensemble=20)
-    param_vec = np.array([15000.0, 2.0, 2.0, 0.1, 9.5, 3.6, 0.05])
+    param_vec = np.array([15000.0, 2.0, 2.0, 0.1, 7.0393, 2.5617, 0.05])
     context = {'t_days': 15.0}
 
     y_pred = enkf.forward_observation_operator(param_vec, context)
@@ -97,7 +97,7 @@ def test_enkf_twin_experiment_matches_observed_rate():
     """
     enkf = EnsembleKalmanFilter(n_ensemble=40, seed=42)
     rng = np.random.default_rng(0)
-    true_params = np.array([22000.0, 5.0, 2.4, 0.1, 9.5, 3.6, 0.08])
+    true_params = np.array([22000.0, 5.0, 2.4, 0.1, 7.0393, 2.5617, 0.08])
     obs_std = np.array([1.5, 0.02])
     ia, ib = enkf.param_names.index('A_visc'), enkf.param_names.index('B_visc')
     prior_A_std = enkf.ensemble[ia].std()

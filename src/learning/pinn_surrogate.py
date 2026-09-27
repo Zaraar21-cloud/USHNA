@@ -8,8 +8,8 @@ during steam injection:
    heated-zone enthalpy at time t.
 2. Correction: an MLP head (inputs r, z, t) that perturbs the baseline by at
    most +/-2.5%. Its output layer starts at zero, so an untrained surrogate
-   IS the Marx-Langenheim baseline. compute_pde_residual() is the loss a
-   training loop would minimize; no training loop exists yet.
+   IS the Marx-Langenheim baseline (injection phase). The trained PINN for the
+   cooling phase, with its training loop and gates, is src/learning/pinn_training.py.
 3. Energy-Balance Closure Audit Gate (Eq 8): the surrogate's integrated enthalpy
    plus Marx-Langenheim over/underburden loss must match injected enthalpy
    within tolerance, or the surrogate is rejected.

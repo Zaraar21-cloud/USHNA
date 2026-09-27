@@ -4,6 +4,7 @@ import { WELLS, FIELD, viscosity, simulate, buildState, envelope, recommendation
 
 const w = WELLS[0];
 assert.ok(viscosity(FIELD.T_R) / viscosity(FIELD.T_s) > 100, 'μ swings ~2 orders between T_R and T_s');
+assert.ok(viscosity(50) > 10000 && viscosity(50) < 13000, 'μ(50 °C) inside Oil India published 10,000–13,000 cP');
 
 const rows = simulate(w).rows;
 for (let p = 1; p < rows.length; p++) assert.ok(rows[p].Tbar <= rows[p - 1].Tbar + 1e-9, `T̄ must not rise (day ${p})`);
@@ -11,6 +12,7 @@ assert.ok(rows[60].fmi < rows[10].fmi, 'FMI falls as the heated zone cools');
 
 // (S·N)max ∝ 1/μ: slowing the pump restores float margin
 const slow = buildState(w, 41, { spm: 4, down: 0.8 }), fast = buildState(w, 41);
+assert.ok(fast.fmiMin.fmi > FIELD.fmiLimit, 'BGW-07 baseline SPM is feasible at day 41, not already floating');
 assert.ok(slow.fmiMin.fmi > fast.fmiMin.fmi, 'lower SPM raises FMI');
 
 // Producing faster spends the thermal asset (δ coupling)

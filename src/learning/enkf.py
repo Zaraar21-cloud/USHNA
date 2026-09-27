@@ -41,8 +41,8 @@ PARAM_SPECS: Dict[str, ParameterSpec] = {
     'c_rod': ParameterSpec('c_rod', '1/s', 0.1, 0.01, 1.0, 0.05, 'Rod damping coefficient'),
     # Walther is double-exponential: std 0.02 on A is ~+/-20% viscosity per sigma
     # (lab-PVT-fit level). 0.2 was ~10x per sigma and swamped the rate statistics.
-    'A_visc': ParameterSpec('A_visc', '-', 9.5, 8.0, 11.0, 0.02, 'Walther parameter A'),
-    'B_visc': ParameterSpec('B_visc', '-', 3.6, 2.8, 4.5, 0.01, 'Walther parameter B'),
+    'A_visc': ParameterSpec('A_visc', '-', 7.0393, 6.5, 7.6, 0.02, 'Walther parameter A'),
+    'B_visc': ParameterSpec('B_visc', '-', 2.5617, 2.2, 2.9, 0.01, 'Walther parameter B'),
     'eta_slip': ParameterSpec('eta_slip', 'fraction', 0.05, 0.0, 0.5, 0.02, 'Pump slippage fraction')
 }
 
