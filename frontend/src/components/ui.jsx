@@ -1,5 +1,22 @@
 import React from 'react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+
+// TeX → typeset math. `block` centres it in display style; inline otherwise.
+export function Tex({ children, block = false, className = '' }) {
+  const html = katex.renderToString(children, { displayMode: block, throwOnError: false, strict: false });
+  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+// Plain-string labels like "T_pump" or "μ_h (heated zone)" → italic symbol with a real subscript.
+export function sub(text) {
+  if (typeof text !== 'string' || !text.includes('_')) return text;
+  return text.split(/([A-Za-zα-ωΑ-Ω]̄?_[A-Za-z0-9]+)/).map((part, i) => {
+    const m = part.match(/^([A-Za-zα-ωΑ-Ω]̄?)_([A-Za-z0-9]+)$/);
+    return m ? <React.Fragment key={i}><i>{m[1]}</i><sub>{m[2]}</sub></React.Fragment> : part;
+  });
+}
 
 export const VIZ = { pink: '#F2549B', green: '#3FB16B', lightGreen: '#7BD88F', orange: '#F59E42', yellow: '#F5C542', blue: '#6C9BF5', purple: '#7B4DFF', grey: '#C9C9D3' };
 export const AXIS = { tickLine: false, axisLine: { stroke: '#E9E9EF' } };
@@ -44,14 +61,14 @@ export function PageHeader({ title, subtitle, tabs, tab, onTab, right }) {
   );
 }
 
-export function Card({ title, icon: Icon, right, children, className = '', pad = 'p-5' }) {
+export function Card({ title, icon: Icon, right, children, className = '', pad = 'p-5', tour }) {
   return (
-    <section className={`card ${pad} ${className}`}>
+    <section className={`card ${pad} ${className}`} data-tour={tour}>
       {(title || right) && (
         <header className={`flex items-center justify-between gap-3 ${pad === 'p-0' ? 'px-5 py-4' : 'mb-4'}`}>
           <h2 className="flex items-center gap-2 text-[15px] font-semibold">
             {Icon && <Icon size={16} className="text-ink-3" />}
-            {title}
+            <span>{sub(title)}</span>
           </h2>
           {right}
         </header>
@@ -71,7 +88,7 @@ export function StatRow({ icon: Icon, label, value, unit, tone }) {
             <Icon size={14} className="text-ink-2" />
           </span>
         )}
-        {label}
+        <span>{sub(label)}</span>
       </span>
       <span className={`num text-sm font-semibold ${tone ? TONE_TEXT[tone] : ''}`}>
         {value}
@@ -124,7 +141,7 @@ export function Avatar({ text, color, size = 28 }) {
 export function Eq({ children, note }) {
   return (
     <div className="rounded-xl bg-canvas border border-line px-4 py-3">
-      <div className="eq">{children}</div>
+      <div className="overflow-x-auto overflow-y-hidden"><Tex block>{children}</Tex></div>
       {note && <p className="mt-1 text-xs text-ink-3">{note}</p>}
     </div>
   );
@@ -153,7 +170,7 @@ export function Legend({ items }) {
       {items.map(([label, color, dashed]) => (
         <span key={label} className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4" style={{ background: dashed ? 'none' : color, borderTop: dashed ? `2px dashed ${color}` : 'none' }} />
-          {label}
+          <span>{sub(label)}</span>
         </span>
       ))}
     </div>

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import { Thermometer, Clock, Layers } from 'lucide-react';
-import { PageHeader, Card, StatRow, Eq, Legend, VIZ, AXIS, GRID, fmt } from '../components/ui';
+import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt } from '../components/ui';
 import { FIELD, ROD, tubingProfile } from '../data/twin';
 
 const TAU_H = 9; // wellbore thermal lag, hours
@@ -18,13 +18,13 @@ export default function Wellbore({ ctx }) {
 
   return (
     <>
-      <PageHeader title="Wellbore" subtitle="Timescale: hours. The bridge between reservoir and surface: it turns reservoir temperature into the viscosity at the pump." />
+      <PageHeader title="Wellbore" subtitle="How the oil cools on its way up the well, which sets how thick it is when it reaches the pump." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card title="Well schematic" icon={Layers} className="lg:col-span-3">
           <Schematic prof={prof} s={s} />
         </Card>
 
-        <Card title="Temperature and viscosity with depth (Ramey)" icon={Thermometer} className="lg:col-span-6" right={<Legend items={[['tubing fluid', VIZ.orange], ['geothermal', '#8C8C9A', true], ['μ(z)', VIZ.pink]]} />}>
+        <Card tour="ramey" title="Temperature and viscosity with depth (Ramey)" icon={Thermometer} className="lg:col-span-6" right={<Legend items={[['tubing fluid', VIZ.orange], ['geothermal', '#8C8C9A', true], ['μ(z)', VIZ.pink]]} />}>
           <div className="grid h-80 grid-cols-2 gap-2">
             <ResponsiveContainer>
               <LineChart layout="vertical" data={prof} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
@@ -47,8 +47,8 @@ export default function Wellbore({ ctx }) {
             </ResponsiveContainer>
           </div>
           <div className="mt-4">
-            <Eq note="A = w·c_p·(1/(r·U) + f(t)/k)/2π. The relaxation distance grows with rate, so faster pumping keeps the column warmer.">
-              {'T(z,t) = T_geo(z) + g·A·(1 − e^(−(L−z)/A)) + (T_pump − T_geo(L))·e^(−(L−z)/A)'}
+            <Eq note={<><Tex>{String.raw`A = \frac{w\,c_p}{2\pi}\left(\frac{1}{r\,U} + \frac{f(t)}{k}\right)`}</Tex> is the relaxation distance. It grows with rate, so faster pumping keeps the column warmer.</>}>
+              {String.raw`T(z,t) = T_{geo}(z) + g_G\,A\left(1 - e^{-(L-z)/A}\right) + \left(T_{pump} - T_{geo}(L)\right)e^{-(L-z)/A}`}
             </Eq>
           </div>
         </Card>

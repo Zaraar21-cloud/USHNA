@@ -8,3 +8,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 *.pyo
+
+# arduino_bridge.py output (hardware capture, not committed)
+arduino_telemetry.csv

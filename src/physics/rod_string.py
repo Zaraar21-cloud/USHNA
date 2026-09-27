@@ -55,27 +55,27 @@ def solve_gibbs_wave_equation(u_initial, u_dt_initial, dx, dt, c, steps, a=4900.
         
     return u_history
 
-def float_margin_index(W_buoyant, mu, v_rod, D_t, D_r, F_fric):
+def float_margin_index(W_buoyant, mu, v_rod, D_t, D_r, F_fric, length=1.0):
     """
     Computes the Float Margin Index (FMI) to predict rod float (Eq 6).
     
     Parameters:
-    - W_buoyant: Buoyed weight of the rod string above depth z
-    - mu: Fluid viscosity
-    - v_rod: Rod velocity (downstroke)
-    - D_t: Tubing inner diameter
-    - D_r: Rod outer diameter
-    - F_fric: Mechanical friction
+    - W_buoyant: Buoyed weight of the rod string above depth z (N)
+    - mu: Fluid viscosity (Pa*s)
+    - v_rod: Rod velocity (downstroke) (m/s)
+    - D_t: Tubing inner diameter (m)
+    - D_r: Rod outer diameter (m)
+    - F_fric: Mechanical friction (N)
+    - length: Length of rod section over which drag accumulates (m)
     
     Returns:
     - FMI: Float Margin Index (must be > 0.15 for safe operation)
     """
-    # Laminar viscous drag per unit length
+    # Laminar viscous drag per unit length (N/m)
     f_drag = (2 * np.pi * mu * v_rod) / np.log(D_t / D_r)
     
-    # For a segment, F_drag = f_drag * length
-    # Assuming f_drag is integrated or represents total drag F_drag for the segment
-    F_drag = f_drag  # Simplification; should integrate over length
+    # Total accumulated viscous drag over length
+    F_drag = f_drag * length
     
     FMI = (W_buoyant - F_drag - F_fric) / W_buoyant
     return FMI

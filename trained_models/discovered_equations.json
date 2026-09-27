@@ -1,0 +1,23 @@
+{
+  "viscosity_law": {
+    "equation": "mu(T, asp) = 0.95 * (10^(10^(7.079 - 2.583*log10(T) + 0.0069*asp^0.96)) - 0.7)",
+    "latex": "\\mu(T, \\text{asp}) = 0.95 \\cdot \\left[ 10^{10^{7.079 - 2.583\\log_{10}(T) + 0.0069 \\cdot \\text{asp}^{0.96}}} - 0.7 \\right]",
+    "r2_score": 0.9999858573140272,
+    "rmse": 105.93098445746126,
+    "signoff": "Fixed-form fit: viscosity data fits modified Walther law with R^2 = 1.0000. Asphaltene sensitivity exponent = 0.96."
+  },
+  "soak_efficiency": {
+    "equation": "eta(t_soak, V_steam) = (1 - exp(-0.846 * (V_steam/1000)^1.02)) * exp(-0.0441 * t_soak)",
+    "latex": "\\eta(t_{\\text{soak}}, V_{\\text{steam}}) = \\left(1 - e^{-0.846 (V_{\\text{steam}}/1000)^{1.02}} \\right) e^{-0.0441 t_{\\text{soak}}}",
+    "r2_score": 0.9788132986161406,
+    "rmse": 0.004473453550494835,
+    "signoff": "Soak Thermal Retention: Enthalpy recovery decays at rate of 4.41%/day. R^2 = 0.9788."
+  },
+  "rod_hazard": {
+    "equation": "Hazard(dF, tc) = 0.0539 * (dF/100)^2.29 * (1 + 0.265 * tc)",
+    "latex": "\\text{Hazard}(\\Delta F, t_{\\text{comp}}) = 0.0539 \\left(\\frac{\\Delta F}{100}\\right)^{2.29} \\left(1 + 0.265 t_{\\text{comp}}\\right)",
+    "r2_score": 0.9981515105217643,
+    "rmse": 0.0010981413824508318,
+    "signoff": "Rod Failure Law: Modified Goodman exponent = 2.29. Compression buckling increases fatigue rate by 26.5% per second in compression. R^2 = 0.9982."
+  }
+}

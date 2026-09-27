@@ -10,12 +10,12 @@ export default function Recommendations({ ctx }) {
     <>
       <PageHeader
         title="Recommendations"
-        subtitle="Every recommendation must include why, driver, governing relation, expected effect, confidence and cycle status. If any field is missing, the card isn't shown. That rule is enforced in the code, not only in this document."
+        subtitle="What the twin says to do next on this well, and why. A card missing its equation, numbers or confidence is never shown."
       />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           {ctx.recs.length === 0 && <Card><p className="text-sm text-ink-2">No action needed. {ctx.well.id} is inside its envelope at the current setpoint.</p></Card>}
-          {ctx.recs.map((r) => <RecCard key={r.id} rec={r} wellId={ctx.well.id} onApply={ctx.submit} />)}
+          {ctx.recs.map((r, i) => <div key={r.id} data-tour={i === 0 ? 'rec' : undefined} className="rounded-2xl"><RecCard rec={r} wellId={ctx.well.id} onApply={ctx.submit} /></div>)}
         </div>
         <div className="space-y-4">
           <Card title="Suppressed by the contract" icon={EyeOff}>

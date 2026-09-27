@@ -3,7 +3,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { Radio, Zap, Upload, Pause, Play, Cpu, WifiOff } from 'lucide-react';
 import { PageHeader, Card, StatRow, Badge, Legend, VIZ, AXIS, GRID } from '../components/ui';
 
-const HZ = 20, WINDOW = 15 * HZ, JERK_LIMIT = 4;
+const HZ = 20, WINDOW = 15 * HZ, JERK_LIMIT = 4, SIM = 'simulated edge stream';
 
 function sample(t, spm, impact) {
   const th = (2 * Math.PI * spm * t) / 60;
@@ -19,11 +19,11 @@ export default function Telemetry({ ctx }) {
   const [data, setData] = useState([]);
   const [running, setRunning] = useState(true);
   const [events, setEvents] = useState([]);
-  const [source, setSource] = useState('simulated');
+  const [source, setSource] = useState(SIM);
   const t = useRef(0), impactUntil = useRef(-1), lastAlert = useRef(-10);
 
   useEffect(() => {
-    if (!running || source !== 'simulated') return;
+    if (!running || source !== SIM) return;
     const id = setInterval(() => {
       const batch = [];
       for (let i = 0; i < 4; i++) {
@@ -59,13 +59,13 @@ export default function Telemetry({ ctx }) {
     <>
       <PageHeader
         title="Edge telemetry"
-        subtitle="An accelerometer on the polished rod, read by an Arduino edge node and bridged over serial (arduino_bridge.py). Impact and float detection runs on the well pad, so it keeps working when the network link drops."
+        subtitle="A simulated vibration stream from the polished rod, the kind an edge accelerometer would send. Spikes flag rod impact or float. Load a CSV from arduino_bridge.py to replay real sensor data instead."
         right={
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => setRunning((r) => !r)} disabled={source !== 'simulated'} className="btn-ghost disabled:opacity-40">{running ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Resume</>}</button>
-            <button onClick={() => { impactUntil.current = t.current + 1.2; }} disabled={source !== 'simulated'} className="btn-ghost disabled:opacity-40"><Zap size={15} /> Inject impact</button>
+            <button onClick={() => setRunning((r) => !r)} disabled={source !== SIM} className="btn-ghost disabled:opacity-40">{running ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Resume</>}</button>
+            <button onClick={() => { impactUntil.current = t.current + 1.2; }} disabled={source !== SIM} className="btn-ghost disabled:opacity-40"><Zap size={15} /> Inject impact</button>
             <label className="btn-primary cursor-pointer">
-              <Upload size={15} /> Load CSV
+              <Upload size={15} /> Load bridge CSV
               <input type="file" accept=".csv" className="sr-only" onChange={(e) => e.target.files[0] && loadCsv(e.target.files[0])} />
             </label>
           </div>
@@ -98,7 +98,7 @@ export default function Telemetry({ ctx }) {
         </Card>
         <div className="space-y-4 lg:col-span-4">
           <Card title="Edge node" icon={Cpu}>
-            <StatRow label="Source" value={<Badge tone={source === 'simulated' ? 'info' : 'ok'}>{source}</Badge>} />
+            <StatRow label="Source" value={<Badge tone={source === SIM ? 'info' : 'ok'}>{source}</Badge>} />
             <StatRow label="Sample rate" value={HZ} unit="Hz" />
             <StatRow label="Jerk alarm threshold" value={JERK_LIMIT} unit="g/s" />
             <StatRow label="SPM (from twin setpoint)" value={s.sp.spm.toFixed(1)} />

@@ -12,11 +12,11 @@ export const FIELD = {
   api: '17–19° API',
   T_R: 47, T_s: 250, T_surf: 30, gradGeo: 0.019, // °C, °C/m
   pay: 20, rw: 0.1, re: 60,                       // m
-  pumpDepth: 900, stroke: 3.0,                    // m
+  pumpDepth: 1100, stroke: 1.22,                  // m (setting depth per SPE 23APOG-535203; 48" unit)
   tInj: 8, tSoak: 5, horizon: 120,                // days
   T_onset: 58,                                    // °C asphaltene onset
   fmiLimit: 0.15, fillageLimit: 0.85, torqueRating: 51.5, // kN·m (API 456 gearbox)
-  oilPrice: 6300, steamCost: 4200, powerCost: 8, opex: 16000, failCost: 1.2e6, // ₹
+  oilPrice: 6300, steamCost: 2000, powerCost: 8, opex: 16000, failCost: 1.2e6, // ₹
   rho: 0.95,
 };
 
@@ -125,20 +125,30 @@ export function phaseData(well, simResult) {
   return { injection, soak: soakPhase, production, phases: [injection, soakPhase, production] };
 }
 
+// Published anchors the synthetic wells are calibrated to (Field Card, DATA_SOURCES.md).
+export const SOURCES = [
+  ['Crude viscosity', '10,000–13,000 cP @ 50 °C', 'Oil India, Rajasthan Fields'],
+  ['API gravity', '17–19°', 'SIH PS 26120'],
+  ['Reservoir temperature', '46–48 °C', 'SIH PS 26120'],
+  ['Formation', 'Jodhpur Sandstone, 16–25% porosity', 'Bikaner–Nagaur basin literature'],
+  ['Field size', '200.26 km², 35 wells, >600 bbl/day', 'Oil India / EOI-014-2024'],
+  ['Pump setting depth', '~1100 m', 'SPE 23APOG-535203'],
+];
+
 // Rod string: tapered 1" over 7/8" with sinker bars (API 11L style weights, N/m).
 export const ROD = {
   sections: [
-    { name: '1" steel', from: 0, to: 620, d: 0.0254, w: 40.9 },
-    { name: '7/8" steel', from: 620, to: 840, d: 0.0222, w: 31.4 },
-    { name: '1½" sinker', from: 840, to: 900, d: 0.0381, w: 90.0 },
+    { name: '1" steel', from: 0, to: 760, d: 0.0254, w: 40.9 },
+    { name: '7/8" steel', from: 760, to: 1030, d: 0.0222, w: 31.4 },
+    { name: '1½" sinker', from: 1030, to: 1100, d: 0.0381, w: 90.0 },
   ],
-  tubingID: 0.062, buoy: 0.88, coupling: 4.7, fric: 2.5, plunger: 250, plungerIn: 1.25,
+  tubingID: 0.062, buoy: 0.88, coupling: 2.5, fric: 2.5, plunger: 250, plungerIn: 1.06,
 };
 
 const log10 = Math.log10;
 
-// ── Viscosity: ASTM D341 / Walther, fitted to ν(47 °C)=2600 cSt, ν(250 °C)=14 cSt ──
-export const WALTHER = { A: 6.0101, B: 2.1860 };
+// ── Viscosity: ASTM D341 / Walther, fitted to μ(50 °C)=11,500 cP (Oil India: 10,000–13,000 cP) and μ(250 °C)=14 cP ──
+export const WALTHER = { A: 7.0393, B: 2.5617 };
 export function viscosity(tC) {
   const ll = WALTHER.A - WALTHER.B * log10(tC + 273.15);
   return (10 ** (10 ** ll) - 0.7) * FIELD.rho; // cP
@@ -366,7 +376,7 @@ export function buildState(well, day, setpoint) {
   };
 }
 
-// ── Explainability contract (Section 9): a card missing any field is never shown ──
+// ── Explainability contract (Section 9): a card missing any field is never shown. `relation` is TeX. ──
 export const REQUIRED_FIELDS = ['why', 'driver', 'relation', 'effect', 'confidence', 'cycle'];
 
 const f0 = (x) => Math.round(x).toLocaleString('en-IN');
@@ -394,7 +404,7 @@ export function recommendations(s, design) {
           ? `Pump fillage ${Math.round(now.fillage * 100)}% and FMI ${f2(s.fmiMin.fmi)} at ${s.fmiMin.z} m are both closing on their limits within the ${2 * 24} h Ramey lag.`
           : `FMI ${f2(s.fmiMin.fmi)} leaves unused margin; the hot, thin fluid can be lifted faster without float.`,
       driver: `Pump-intake temperature ${f0(ago.Tpump)} °C → ${f0(now.Tpump)} °C over the last 96 hours; μ ${ago.mu < now.mu ? 'risen' : 'fallen'} ${f0(ago.mu)} → ${f0(now.mu)} cP.`,
-      relation: '(S·N)max ∝ 1/μ(T_pump) — annular viscous drag versus buoyed rod weight.',
+      relation: String.raw`(S\cdot N)_{\max} \propto \frac{1}{\mu(T_{pump})}\quad\text{(annular viscous drag vs. buoyed rod weight)}`,
       effect: `${pct(after.gross, now.gross)} gross fluid; ${pct(after.dragDown, s.loads.dragDown)} peak downstroke drag; rod fatigue life ×${f1(Math.min(lifeX, 9.9))}; FMI → ${f2(after.fmi)}.`,
       confidence: `${Math.round(92 - muSigma / 40)}%. EnKF posterior on μ: ±${muSigma} cP.`,
       cycle,
@@ -408,7 +418,7 @@ export function recommendations(s, design) {
       title: `Schedule re-injection for day ${cut.day}`,
       why: `Profit rate π(t) = ₹${f0(now.profit)}/d is projected to cross the fresh-cycle average π̄* = ₹${f0(cut.piStar)}/d at day ${cut.day}.`,
       driver: `Heated-zone T̄ ${f0(ago.Tbar)} → ${f0(now.Tbar)} °C in 4 days; δ (heat carried off by produced fluid) now ${f2(now.delta)}.`,
-      relation: 'Stop producing and re-inject when π(t) ≤ π̄* (renewal–reward process).',
+      relation: String.raw`\text{Re-inject when }\ \pi(t) \le \bar{\pi}^{*}\quad\text{(renewal-reward process)}`,
       effect: `Cycle-average profit ₹${f0(cut.piStar)}/d vs ₹${f0(cut.rateToHorizon)}/d if run to day ${FIELD.horizon} (${pct(cut.piStar, cut.rateToHorizon)}); SOR at cut-off ${f2(s.sorAtCut)}.`,
       confidence: `${80 - cut.band * 2}%. Band from EnKF kh ±10%: day ${cut.day - cut.band}–${cut.day + cut.band}.`,
       cycle,
@@ -421,7 +431,7 @@ export function recommendations(s, design) {
       title: `Cycle ${well.cycle + 1}: ${f0(design.best.steam)} t steam, ${design.best.soak} d soak`,
       why: `Posterior NPV maximum over ${design.calls} physics-model calls; current design (${f0(well.steam)} t, ${well.soak} d) sits ${Math.round((1 - design.current.npv / design.best.npv) * 100)}% below it.`,
       driver: `EnKF updates this cycle: kh ×${f2(well.kh)}, skin ${f1(well.skin)}, heat-loss coefficient ×${f2(well.heatLoss)}.`,
-      relation: 'max NPV = Σ (R·q_o − C_steam·V_s − C_energy·E − C_fail·λ)/(1+r)^t over (V_s, t_soak).',
+      relation: String.raw`\max_{V_s,\ t_{soak}} \mathrm{NPV} = \sum_t \frac{R\,q_o - C_{steam}V_s - C_{energy}E - C_{fail}\lambda}{(1+r)^t}`,
       effect: `NPV ₹${f1(design.best.npv / 1e5)} L vs ₹${f1(design.current.npv / 1e5)} L; SOR ${f2(design.best.sor)} vs ${f2(design.current.sor)}.`,
       confidence: `${design.confidence}%. GP posterior σ at optimum ±₹${f1(design.sigma / 1e5)} L.`,
       cycle,
@@ -434,7 +444,7 @@ export function recommendations(s, design) {
       title: 'Plan near-wellbore solvent treatment before next injection',
       why: `Skin posterior has drifted 1.6 → ${f1(well.skin)} over ${well.cycle} cycles, outside its prior band.`,
       driver: 'Monotonic skin rise with Tpump below asphaltene onset (58 °C) for long tails of each cycle.',
-      relation: 'q_o = 2πk·k_ro·h·ΔP / (μ_h[ln(r_h/r_w) + s] + μ_c·ln(r_e/r_h)).',
+      relation: String.raw`q_o = \frac{2\pi k\,k_{ro}\,h\,\Delta P}{\mu_h\left[\ln(r_h/r_w) + s\right] + \mu_c\ln(r_e/r_h)}`,
       effect: `Restoring s to 1.6 raises current inflow ${pct(inflowAt(s, 1.6), now.inflow)} at today's temperatures.`,
       confidence: '74%. Skin posterior ±0.6 (1σ).',
       cycle,
@@ -483,31 +493,6 @@ export function designSpace(well) {
   let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const samples = grid.filter((g) => rnd() < 0.25 + 0.6 * Math.exp(-(((g.steam - best.steam) / 900) ** 2 + ((g.soak - best.soak) / 3) ** 2)));
   return { grid, steams, soaks, best, current, samples, calls: samples.length, confidence: 84, sigma: Math.abs(best.npv) * 0.06 };
-}
-
-// ── EnKF parameter table (Section 5.1) ──
-export function enkfParams(well) {
-  return [
-    { key: 'kh', name: 'Permeability-thickness kh', unit: 'mD·m', prior: [4000, 1500], post: [4000 * well.kh * 1.02, 260], source: 'rate and pressure history' },
-    { key: 'skin', name: 'Skin s', unit: '—', prior: [2.0, 1.5], post: [well.skin, 0.6], source: 'rate and pressure history', flag: well.skin > 3 ? 'Rising cycle over cycle → asphaltene deposition' : null },
-    { key: 'U', name: 'Overburden heat-loss coefficient', unit: 'W/m²K', prior: [3.0, 1.2], post: [3.0 * well.heatLoss, 0.25], source: 'observed temperature decline' },
-    { key: 'c', name: 'Rod damping coefficient c', unit: '1/s', prior: [0.5, 0.25], post: [0.42, 0.04], source: 'dynamometer card fit' },
-    { key: 'A', name: 'Walther coefficient A', unit: '—', prior: [6.2, 0.4], post: [WALTHER.A, 0.03], source: 'card, rate and temperature jointly' },
-    { key: 'B', name: 'Walther coefficient B', unit: '—', prior: [2.3, 0.3], post: [WALTHER.B, 0.02], source: 'card, rate and temperature jointly' },
-    { key: 'slip', name: 'Pump slippage / leakage', unit: 'fraction', prior: [0.05, 0.03], post: [0.03, 0.006], source: 'fillage versus measured rate' },
-  ];
-}
-
-// Assimilation steps: posterior mean walks from prior to truth while the band collapses.
-export function enkfTrace(param, steps = 40) {
-  const [m0, s0] = param.prior, [m1, s1] = param.post;
-  let seed = param.key.length * 97 + 13; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
-  return Array.from({ length: steps }, (_, i) => {
-    const k = 1 - Math.exp(-i / 8);
-    const mean = m0 + (m1 - m0) * k + rnd() * s1 * 0.6 * (1 - k * 0.5);
-    const sd = s0 + (s1 - s0) * k;
-    return { step: i, mean, band: [mean - 2 * sd, mean + 2 * sd], truth: m1 };
-  });
 }
 
 // ── Steam Volume Optimizer ──
