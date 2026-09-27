@@ -20,6 +20,111 @@ export const FIELD = {
   rho: 0.95,
 };
 
+// ── CSS cycle phases ──
+export const PHASES = [
+  { id: 1, key: 'injection', name: 'Injection', color: '#F59E42', bgColor: '#FEF3E2', description: 'Steam injected into the wellbore via Marx–Langenheim. Heats the near-wellbore zone.' },
+  { id: 2, key: 'soak',      name: 'Soak',      color: '#7B4DFF', bgColor: '#F0EBFF', description: 'Well shut in. Heat redistributes into the formation (Boberg–Lantz).' },
+  { id: 3, key: 'production', name: 'Production', color: '#3FB16B', bgColor: '#E9F7EF', description: 'Well produces heated oil via SRP. Monitored until optimal cut-off.' },
+];
+
+/**
+ * Compute which phase a well is in given a "total cycle day" (from start of injection).
+ * totalCycleDay: day counting from the start of the current cycle's injection.
+ * Returns { phase, phaseDayIndex, phaseDay, totalCycleDay, phaseDurations }.
+ */
+export function getPhase(well, productionDay) {
+  const tInj = FIELD.tInj;             // injection duration (days)
+  const soak = well.soak;              // soak duration (days)
+  // productionDay is the day within the production phase (0 = first production day)
+  // Total cycle day = tInj + soak + productionDay
+  const totalCycleDay = tInj + soak + productionDay;
+  const phaseDurations = { injection: tInj, soak, production: FIELD.horizon };
+
+  // Determine which phase based on the production day
+  // Since the simulation only tracks production days (0..horizon),
+  // the current view is always in production. But we model the full cycle.
+  const phase = PHASES[2]; // production
+  const phaseDay = productionDay;
+  const elapsed = productionDay;
+
+  return {
+    phase,
+    phaseDay,         // day within current phase
+    totalCycleDay,    // day from start of injection
+    phaseDurations,
+    elapsed,
+    // Phase boundaries as total-cycle-day offsets
+    boundaries: {
+      injectionStart: 0,
+      injectionEnd: tInj,
+      soakStart: tInj,
+      soakEnd: tInj + soak,
+      productionStart: tInj + soak,
+      productionEnd: tInj + soak + FIELD.horizon,
+    },
+  };
+}
+
+/**
+ * Aggregate per-phase data for a well's cycle.
+ * Returns an object with injection, soak, and production phase summaries.
+ */
+export function phaseData(well, simResult) {
+  const { rows, rh, steam, soak: soakDays } = simResult;
+  const tInj = FIELD.tInj;
+  const soak = soakDays || well.soak;
+
+  // ── Phase 1: Injection ──
+  const heatedR = heatedRadius(steam, tInj, tInj);
+  const energyInjected = steam * 2.33; // GJ
+  const injection = {
+    phase: PHASES[0],
+    duration: tInj,
+    steam: steam,
+    steamBbl: steam * 6.29,
+    heatedRadius: heatedR,
+    energyInjected,
+    startTemp: FIELD.T_R,
+    endTemp: FIELD.T_s,
+    description: `Injected ${Math.round(steam)} t of steam (${(steam * 6.29).toFixed(0)} bbl) over ${tInj} days. Heated radius reached ${heatedR.toFixed(1)} m.`,
+  };
+
+  // ── Phase 2: Soak ──
+  const eta = 1 - Math.exp(-soak / 2.5);
+  const soakLoss = 0.012 * soak;
+  const soakPhase = {
+    phase: PHASES[1],
+    duration: soak,
+    redistributionEfficiency: eta,
+    heatLoss: soakLoss,
+    endTemp: rows[0]?.Tbar || FIELD.T_s * (1 - soakLoss),
+    description: `Shut-in for ${soak} days. Redistribution efficiency η = ${(eta * 100).toFixed(0)}%. Conductive loss δ = ${(soakLoss * 100).toFixed(1)}%.`,
+  };
+
+  // ── Phase 3: Production ──
+  const lastRow = rows[rows.length - 1];
+  const cutRows = rows.filter(r => r.profit > 0);
+  const avgFmi = rows.reduce((s, r) => s + (r.fmi || 0), 0) / rows.length;
+  const avgTemp = rows.reduce((s, r) => s + r.Tpump, 0) / rows.length;
+  const avgVisc = rows.reduce((s, r) => s + r.mu, 0) / rows.length;
+  const peakOil = rows.reduce((m, r) => Math.max(m, r.oil), 0);
+  const totalOil = lastRow.cumOil;
+  const production = {
+    phase: PHASES[2],
+    duration: FIELD.horizon,
+    totalOil,
+    peakOilRate: peakOil,
+    avgTemp: avgTemp,
+    avgViscosity: avgVisc,
+    avgFmi: avgFmi,
+    sor: (steam * 6.29) / Math.max(totalOil, 1),
+    waterCutRange: [rows[0]?.waterCut || 0, lastRow?.waterCut || 0],
+    description: `Produced ${Math.round(totalOil)} bbl over ${FIELD.horizon} days. Peak rate ${peakOil.toFixed(1)} bbl/d. SOR ${((steam * 6.29) / Math.max(totalOil, 1)).toFixed(2)}.`,
+  };
+
+  return { injection, soak: soakPhase, production, phases: [injection, soakPhase, production] };
+}
+
 // Rod string: tapered 1" over 7/8" with sinker bars (API 11L style weights, N/m).
 export const ROD = {
   sections: [
@@ -254,7 +359,9 @@ export function buildState(well, day, setpoint) {
     npv: cycleNpv(rows, sim.steam, cut.day),
     mpc: opt, spmMax,
     fmiMin: minBy(fmiZ, 'fmi'),
-    phase: 'Production',
+    phaseInfo: getPhase(well, day),
+    phase: getPhase(well, day).phase.name,
+    phaseData: phaseData(well, sim),
     asphaltene: now.Tpump < FIELD.T_onset,
   };
 }
@@ -401,4 +508,62 @@ export function enkfTrace(param, steps = 40) {
     const sd = s0 + (s1 - s0) * k;
     return { step: i, mean, band: [mean - 2 * sd, mean + 2 * sd], truth: m1 };
   });
+}
+
+// ── Steam Volume Optimizer ──
+export function optimizeSteamVolume(well) {
+  const steams = [1500, 1800, 2100, 2400, 2700, 3000, 3300, 3600, 3900, 4200, 4500];
+  const soaks = [2, 4, 6, 8, 10];
+  let best = null, bestNpv = -Infinity;
+  
+  for (const soak of soaks) {
+    for (const steam of steams) {
+      // 1. Constraints Check
+      const pInj = steam * 0.004;
+      const tSat = 180 + 5 * pInj;
+      const feasible = pInj <= 18 && steam <= 5000 && tSat <= 300;
+      if (!feasible) continue;
+
+      // 2. Simulate
+      const sim = simulate(well, { withFmi: false, design: { steam, soak } });
+      const cut = cutoff(sim.rows, steam);
+      const npv = cycleNpv(sim.rows, steam, cut.day);
+      const sor = (steam * 6.29) / Math.max(sim.rows[cut.day].cumOil, 1);
+      
+      const res = { steam, soak, npv, sor, cumOil: sim.rows[cut.day].cumOil, cutDay: cut.day, rh: sim.rh, feasible };
+      if (npv > bestNpv) { bestNpv = npv; best = res; }
+    }
+  }
+
+  // Find binding constraint for the best solution
+  let binding = 'None';
+  if (best) {
+    const pInj = best.steam * 0.004;
+    if (pInj >= 18 * 0.9) binding = 'Injection pressure ≤ P_frac';
+    else if (best.steam >= 5000 * 0.9) binding = 'Steam volume ≤ boiler capacity';
+  }
+
+  // Sensitivity over steams at optimal soak
+  const sens = steams.map(steam => {
+    const pInj = steam * 0.004;
+    const feasible = pInj <= 18 && steam <= 5000 && (180 + 5 * pInj) <= 300;
+    const sim = simulate(well, { withFmi: false, design: { steam, soak: best ? best.soak : 5 } });
+    const cut = cutoff(sim.rows, steam);
+    const npv = cycleNpv(sim.rows, steam, cut.day);
+    const sor = (steam * 6.29) / Math.max(sim.rows[cut.day].cumOil, 1);
+    return { steam, npv, sor, cumOil: sim.rows[cut.day].cumOil, feasible };
+  });
+
+  return {
+    optimalSteam: best ? best.steam : 0,
+    optimalSoak: best ? best.soak : 0,
+    npv: best ? best.npv : 0,
+    sor: best ? best.sor : 0,
+    cumOil: best ? best.cumOil : 0,
+    cutDay: best ? best.cutDay : 0,
+    rh: best ? best.rh : 0,
+    binding,
+    confidence: best ? Math.min(95, 60 + (steams.length * 2)) : 60,
+    sens
+  };
 }

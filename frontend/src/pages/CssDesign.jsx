@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar as RBar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ReferenceDot } from 'recharts';
 import { Timer, Grid3x3, History } from 'lucide-react';
 import { PageHeader, Card, StatRow, Eq, Legend, VIZ, AXIS, GRID, fmt, Toggle } from '../components/ui';
-import { FIELD } from '../data/twin';
+import { FIELD, optimizeSteamVolume } from '../data/twin';
 
-const TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest'];
+const TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest', 'Steam volume optimizer'];
 
 export default function CssDesign({ ctx }) {
   const [tab, setTab] = useState(TABS[0]);
@@ -14,6 +14,7 @@ export default function CssDesign({ ctx }) {
       {tab === TABS[0] && <Cutoff s={ctx.s} />}
       {tab === TABS[1] && <Design ctx={ctx} />}
       {tab === TABS[2] && <Backtest well={ctx.well} />}
+      {tab === TABS[3] && <SteamOptimizer ctx={ctx} />}
     </>
   );
 }
@@ -170,6 +171,40 @@ function Backtest({ well }) {
         ))}
       </div>
       <p className="text-xs text-ink-3">Illustrative backtest on synthetic cycle history. Validation protocol: leave-one-cycle-out history matching, an energy-balance closure audit, and card-reconstruction error on held-out cards.</p>
+    </div>
+  );
+}
+
+function SteamOptimizer({ ctx }) {
+  const result = useMemo(() => optimizeSteamVolume(ctx.well), [ctx.well.id, ctx.well.cycle]);
+  
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <Card title="Optimizer results" icon={Grid3x3} className="lg:col-span-1">
+        <StatRow label="Optimal steam volume" value={fmt.n0(result.optimalSteam)} unit="t" />
+        <StatRow label="Recommended soak" value={result.optimalSoak} unit="days" />
+        <StatRow label="Projected cumulative oil" value={fmt.n0(result.cumOil)} unit="bbl" />
+        <StatRow label="Projected SOR" value={fmt.n2(result.sor)} />
+        <StatRow label="Expected cycle NPV" value={fmt.lakh(result.npv)} />
+        <StatRow label="Optimal cut-off day" value={result.cutDay} />
+        <div className="my-3 border-t border-line" />
+        <StatRow label="Binding constraint" value={result.binding} tone={result.binding !== 'None' ? 'warn' : 'ok'} />
+        <StatRow label="Confidence" value={`${Math.round(result.confidence)}%`} />
+      </Card>
+      <Card title="NPV vs Steam Volume" icon={History} className="lg:col-span-2">
+        <div className="h-72">
+          <ResponsiveContainer>
+            <LineChart data={result.sens} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="steam" type="number" domain={[1500, 4500]} {...AXIS} unit=" t" />
+              <YAxis {...AXIS} width={60} tickFormatter={(v) => `₹${(v / 1e5).toFixed(0)}L`} />
+              <Tooltip formatter={(v) => `₹${fmt.lakh(v)}`} labelFormatter={(l) => `${l} tonnes`} />
+              <ReferenceLine x={result.optimalSteam} stroke={VIZ.purple} strokeDasharray="5 4" label={{ value: 'Optimal', position: 'top' }} />
+              <Line dataKey="npv" stroke={VIZ.pink} strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
     </div>
   );
 }

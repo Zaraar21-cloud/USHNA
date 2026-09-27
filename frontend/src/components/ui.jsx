@@ -159,3 +159,72 @@ export function Legend({ items }) {
     </div>
   );
 }
+
+export function PhaseBadge({ phase, size = 'default' }) {
+  if (!phase) return null;
+  const cls = size === 'sm'
+    ? 'px-2 py-0.5 text-[10px]'
+    : 'px-2.5 py-1 text-[11px]';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${cls}`}
+      style={{ background: phase.bgColor, color: phase.color }}
+    >
+      <span className="grid h-4 w-4 place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: phase.color }}>
+        {phase.id}
+      </span>
+      {phase.name}
+    </span>
+  );
+}
+
+export function PhaseTimeline({ phaseInfo, compact = false }) {
+  if (!phaseInfo) return null;
+  const { boundaries, totalCycleDay, phase } = phaseInfo;
+  const totalDays = boundaries.productionEnd;
+  const segments = [
+    { key: 'injection', label: 'Injection', start: boundaries.injectionStart, end: boundaries.injectionEnd, color: '#F59E42' },
+    { key: 'soak', label: 'Soak', start: boundaries.soakStart, end: boundaries.soakEnd, color: '#7B4DFF' },
+    { key: 'production', label: 'Production', start: boundaries.productionStart, end: boundaries.productionEnd, color: '#3FB16B' },
+  ];
+  const markerPct = Math.min((totalCycleDay / totalDays) * 100, 100);
+
+  return (
+    <div className={compact ? '' : 'mt-1'}>
+      <div className="relative flex h-2.5 w-full overflow-hidden rounded-full bg-[#F1F1F5]">
+        {segments.map((seg) => {
+          const w = ((seg.end - seg.start) / totalDays) * 100;
+          const isActive = phase.key === seg.key;
+          return (
+            <div
+              key={seg.key}
+              className="h-full transition-opacity"
+              style={{
+                width: `${w}%`,
+                background: seg.color,
+                opacity: isActive ? 1 : 0.3,
+              }}
+            />
+          );
+        })}
+        {/* Current position marker */}
+        <div
+          className="absolute top-0 h-full w-0.5 bg-ink shadow-sm"
+          style={{ left: `${markerPct}%` }}
+        />
+      </div>
+      {!compact && (
+        <div className="mt-1.5 flex text-[10px] text-ink-3">
+          {segments.map((seg) => {
+            const w = ((seg.end - seg.start) / totalDays) * 100;
+            return (
+              <span key={seg.key} style={{ width: `${w}%` }} className="truncate">
+                {seg.label} ({seg.end - seg.start}d)
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

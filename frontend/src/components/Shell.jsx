@@ -3,8 +3,8 @@ import {
   LayoutGrid, Flame, Thermometer, Activity, Brain, Sparkles, SlidersHorizontal, CalendarClock,
   Radio, GitBranch, ChevronDown, ChevronRight, HelpCircle, Bell, Menu, X, Wifi,
 } from 'lucide-react';
-import { Avatar, Badge } from './ui';
-import { FIELD, WELLS } from '../data/twin';
+import { Avatar, Badge, PhaseBadge, PhaseTimeline } from './ui';
+import { FIELD, WELLS, getPhase, PHASES } from '../data/twin';
 
 const NAV = [
   { id: 'Overview', label: 'Dashboard', icon: LayoutGrid },
@@ -99,7 +99,10 @@ export default function Shell({ page, go, ctx, children }) {
                   >
                     <Avatar text={st.well.id.slice(-2)} color={st.well.hue} size={24} />
                     <span className="font-medium">{st.well.id}</span>
-                    <span className="ml-auto text-xs text-ink-3 num">Cycle {st.well.cycle} · day {st.day}</span>
+                    <span className="ml-auto flex items-center gap-2">
+                      <PhaseBadge phase={getPhase(st.well, st.day).phase} size="sm" />
+                      <span className="text-xs text-ink-3 num">C{st.well.cycle} · d{st.day}</span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -118,6 +121,7 @@ export default function Shell({ page, go, ctx, children }) {
                   <span className="font-semibold num">day {day}</span>
                   <span className="text-ink-2"> of production · cut-off ≈ {s.cut.day}</span>
                 </span>
+                <PhaseBadge phase={s.phaseInfo?.phase} size="sm" />
                 <span className="h-1.5 w-24 rounded-full bg-[#F1F1F5]">
                   <span className="block h-1.5 rounded-full bg-brand-500" style={{ width: `${progress * 100}%` }} />
                 </span>
@@ -130,10 +134,13 @@ export default function Shell({ page, go, ctx, children }) {
               <div className="p-1">
                 <p className="text-sm font-semibold">Scrub the production cycle</p>
                 <p className="mt-1 text-xs text-ink-2">Every page recomputes from the physics chain as the heated zone cools.</p>
+                <div className="mt-3 mb-1">
+                  <PhaseTimeline phaseInfo={s.phaseInfo} />
+                </div>
                 <input
                   type="range" min={0} max={FIELD.horizon} value={day}
                   onChange={(e) => ctx.setDay(+e.target.value)}
-                  className="mt-4 w-full accent-brand-500" aria-label="Production day"
+                  className="mt-3 w-full accent-brand-500" aria-label="Production day"
                 />
                 <div className="mt-1 flex justify-between text-xs text-ink-3 num"><span>day 0</span><span>day {FIELD.horizon}</span></div>
                 <button onClick={ctx.resetDay} className="mt-3 text-xs font-medium text-brand-600 hover:underline">Back to live (day {well.day})</button>

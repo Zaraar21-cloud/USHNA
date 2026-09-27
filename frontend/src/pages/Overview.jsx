@@ -2,10 +2,10 @@ import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, LabelList,
 } from 'recharts';
-import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown } from 'lucide-react';
-import { PageHeader, Card, StatRow, Avatar, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend } from '../components/ui';
+import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown, Zap, Clock, ChevronDown as ChevDown, ChevronUp } from 'lucide-react';
+import { PageHeader, Card, StatRow, Avatar, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend, PhaseBadge, PhaseTimeline } from '../components/ui';
 import RecCard from '../components/RecCard';
-import { FIELD } from '../data/twin';
+import { FIELD, PHASES, getPhase } from '../data/twin';
 
 export default function Overview({ ctx }) {
   const [tab, setTab] = useState('Overview');
@@ -60,7 +60,11 @@ function OverviewTab({ ctx }) {
         <EnthalpyCard s={s} r={r} />
       </div>
 
+      <PhaseIndicatorCard s={s} well={well} />
+
       <TrajectoryCard s={s} />
+
+      <PhaseDataSection s={s} well={well} />
 
       {recs[0] && (
         <div>
@@ -240,7 +244,7 @@ function statusOf(st) {
 function WellsTable({ ctx }) {
   const [q, setQ] = useState('');
   const rows = ctx.fleet.filter((st) => st.well.id.toLowerCase().includes(q.toLowerCase()));
-  const cols = ['Well', 'Cycle · day', 'T_pump °C', 'μ pump cP', 'Min FMI', 'SPM set / MPC', 'Fillage', 'SOR to date', 'Cut-off day', 'Status'];
+  const cols = ['Well', 'Phase', 'Cycle · day', 'T_pump °C', 'μ pump cP', 'Min FMI', 'SPM set / MPC', 'Fillage', 'SOR to date', 'Cut-off day', 'Status'];
   const cells = (st) => [st.well.id, `${st.well.cycle} · ${st.day}`, fmt.n0(st.now.Tpump), fmt.n0(st.now.mu), fmt.n2(st.fmiMin.fmi), `${st.sp.spm.toFixed(1)} / ${st.mpc.spm.toFixed(1)}`, fmt.pct(st.now.fillage), st.sor.toFixed(1), st.cut.day, statusOf(st)[1]];
 
   const exportCsv = () => {
@@ -286,6 +290,7 @@ function WellsTable({ ctx }) {
                       {st.well.id}
                     </span>
                   </td>
+                  <td className="td"><PhaseBadge phase={getPhase(st.well, st.day).phase} size="sm" /></td>
                   <td className="td text-ink-2">{st.well.cycle} · {st.day}</td>
                   <td className="td">{fmt.n0(st.now.Tpump)}</td>
                   <td className="td">{fmt.n0(st.now.mu)}</td>
@@ -300,6 +305,155 @@ function WellsTable({ ctx }) {
             })}
           </tbody>
         </table>
+      </div>
+    </Card>
+  );
+}
+
+function PhaseIndicatorCard({ s, well }) {
+  const { phaseInfo, phaseData: pd } = s;
+  if (!phaseInfo || !pd) return null;
+  const { phase, phaseDay, totalCycleDay, boundaries } = phaseInfo;
+  const totalDays = boundaries.productionEnd;
+
+  // Stats for the active phase
+  const activeData = pd.phases[phase.id - 1];
+
+  return (
+    <Card title="Cycle phase" icon={Clock} right={<PhaseBadge phase={phase} />}>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.5fr]">
+        {/* Left: Phase info */}
+        <div>
+          <p className="text-sm text-ink-2">{phase.description}</p>
+          <div className="mt-4 space-y-2.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-ink-2">Cycle</span>
+              <span className="num font-semibold">{well.cycle}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-ink-2">Total cycle day</span>
+              <span className="num font-semibold">{totalCycleDay} <span className="font-normal text-ink-3">of {totalDays}</span></span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-ink-2">Phase day</span>
+              <span className="num font-semibold">{phaseDay} <span className="font-normal text-ink-3">of {activeData?.duration ?? '—'}</span></span>
+            </div>
+            {s.cut && (
+              <div className="flex justify-between text-sm">
+                <span className="text-ink-2">Cut-off projected</span>
+                <span className="num font-semibold">day {s.cut.day} <span className="font-normal text-ink-3">± {s.cut.band}</span></span>
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Right: Timeline */}
+        <div>
+          <p className="mb-2 text-xs font-medium text-ink-3 uppercase tracking-wide">Full cycle timeline</p>
+          <PhaseTimeline phaseInfo={phaseInfo} />
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {PHASES.map((p) => {
+              const isActive = p.id === phase.id;
+              return (
+                <div key={p.id} className={`rounded-xl border px-3 py-2.5 transition-all ${isActive ? 'border-2 shadow-sm' : 'border-line opacity-70'}`} style={isActive ? { borderColor: p.color } : {}}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="grid h-5 w-5 place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: p.color }}>{p.id}</span>
+                    <span className="text-xs font-semibold">{p.name}</span>
+                  </div>
+                  <p className="text-[11px] text-ink-3 leading-relaxed">
+                    {p.id === 1 && `${FIELD.tInj} days`}
+                    {p.id === 2 && `${well.soak} days`}
+                    {p.id === 3 && `up to ${FIELD.horizon} days`}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function PhaseDataSection({ s, well }) {
+  const { phaseData: pd } = s;
+  const [expanded, setExpanded] = useState(null);
+  if (!pd) return null;
+
+  const toggle = (id) => setExpanded((prev) => (prev === id ? null : id));
+
+  const phaseRows = [
+    {
+      data: pd.injection,
+      metrics: [
+        ['Steam injected', `${fmt.n0(pd.injection.steam)} t (${fmt.n0(pd.injection.steamBbl)} bbl)`],
+        ['Duration', `${pd.injection.duration} days`],
+        ['Heated radius', `${pd.injection.heatedRadius.toFixed(1)} m`],
+        ['Energy injected', `${pd.injection.energyInjected.toFixed(0)} GJ`],
+        ['Start temperature', `${pd.injection.startTemp} °C`],
+        ['Target temperature', `${pd.injection.endTemp} °C`],
+      ],
+    },
+    {
+      data: pd.soak,
+      metrics: [
+        ['Duration', `${pd.soak.duration} days`],
+        ['Redistribution efficiency', `${(pd.soak.redistributionEfficiency * 100).toFixed(0)}%`],
+        ['Heat loss (conduction)', `${(pd.soak.heatLoss * 100).toFixed(1)}%`],
+        ['Reservoir temp at end of soak', `${fmt.n0(pd.soak.endTemp)} °C`],
+      ],
+    },
+    {
+      data: pd.production,
+      metrics: [
+        ['Duration (horizon)', `${pd.production.duration} days`],
+        ['Total oil produced', `${fmt.n0(pd.production.totalOil)} bbl`],
+        ['Peak oil rate', `${pd.production.peakOilRate.toFixed(1)} bbl/d`],
+        ['Avg pump temperature', `${fmt.n0(pd.production.avgTemp)} °C`],
+        ['Avg viscosity', `${fmt.n0(pd.production.avgViscosity)} cP`],
+        ['Avg FMI', pd.production.avgFmi.toFixed(2)],
+        ['Steam-oil ratio', pd.production.sor.toFixed(2)],
+        ['Water cut range', `${fmt.pct(pd.production.waterCutRange[0])} → ${fmt.pct(pd.production.waterCutRange[1])}`],
+      ],
+    },
+  ];
+
+  return (
+    <Card pad="p-0" title="Phase data" icon={Zap} right={<span className="text-xs text-ink-3">Click a phase to expand</span>}>
+      <div className="divide-y divide-line">
+        {phaseRows.map(({ data: d, metrics }) => {
+          const isOpen = expanded === d.phase.id;
+          return (
+            <div key={d.phase.id}>
+              <button
+                onClick={() => toggle(d.phase.id)}
+                className={`flex w-full items-center gap-3 px-5 py-3.5 text-left text-sm hover:bg-canvas transition-colors ${isOpen ? 'bg-canvas' : ''}`}
+              >
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: d.phase.color }}>
+                  {d.phase.id}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="font-semibold">{d.phase.name}</span>
+                  <span className="ml-2 text-ink-3">{d.duration} days</span>
+                </div>
+                <span className="mr-2 max-w-xs truncate text-xs text-ink-2 hidden sm:inline">{d.description}</span>
+                {isOpen ? <ChevronUp size={16} className="text-ink-3 shrink-0" /> : <ChevDown size={16} className="text-ink-3 shrink-0" />}
+              </button>
+              {isOpen && (
+                <div className="bg-canvas/50 px-5 py-4 border-t border-line">
+                  <p className="text-sm text-ink-2 mb-4">{d.description}</p>
+                  <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {metrics.map(([label, value]) => (
+                      <div key={label} className="flex justify-between text-sm py-1 border-b border-line/50 last:border-0">
+                        <span className="text-ink-2">{label}</span>
+                        <span className="num font-semibold">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
