@@ -10,10 +10,11 @@
     "check": "node src/data/twin.check.mjs"
   },
   "dependencies": {
+    "katex": "^0.16.47",
+    "lucide-react": "^0.441.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7",
-    "lucide-react": "^0.441.0"
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

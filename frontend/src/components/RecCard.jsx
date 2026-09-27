@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
-import { Badge } from './ui';
+import { Badge, Tex } from './ui';
 
 const ROWS = [
   ['why', 'Why'],
@@ -29,7 +29,7 @@ export default function RecCard({ rec, wellId, onApply }) {
           {ROWS.map(([k, label]) => (
             <React.Fragment key={k}>
               <dt className="pt-2.5 text-[13px] font-medium text-brand-700">{label}</dt>
-              <dd className={`border-b border-line py-2.5 text-sm text-ink last:border-0 sm:border-b ${k === 'relation' ? 'eq' : ''}`}>{rec[k]}</dd>
+              <dd className={`border-b border-line py-2.5 text-sm text-ink last:border-0 sm:border-b ${k === 'relation' ? 'overflow-x-auto' : ''}`}>{k === 'relation' ? <Tex>{String.raw`\displaystyle ` + rec[k]}</Tex> : rec[k]}</dd>
             </React.Fragment>
           ))}
         </dl>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ScatterChart, Scatter, Cell } from 'recharts';
 import { ShieldAlert, Activity, Microscope, Wrench } from 'lucide-react';
-import { PageHeader, Card, StatRow, Eq, Legend, Status, Badge, Bar, VIZ, AXIS, GRID, fmt, toneOf } from '../components/ui';
+import { PageHeader, Card, StatRow, Eq, Tex, Legend, Status, Badge, Bar, VIZ, AXIS, GRID, fmt, toneOf } from '../components/ui';
 import { FIELD, fmiProfile, loads } from '../data/twin';
 
 const TABS = ['Float margin', 'Card diagnosis', 'Fatigue & buckling'];
@@ -12,7 +12,7 @@ export default function RodString({ ctx }) {
     <>
       <PageHeader
         title="Rod string & SRP"
-        subtitle="Timescale: seconds to minutes. Gibbs damped wave equation, run forward for what-if and inverted to turn the surface card into a downhole card."
+        subtitle="How close the rod string is to floating, and the maximum pumping speed that keeps it safe."
         tabs={TABS} tab={tab} onTab={setTab}
       />
       {tab === 'Float margin' && <FloatMargin s={ctx.s} />}
@@ -45,17 +45,17 @@ function FloatMargin({ s }) {
         <p className="mt-2 text-xs text-ink-3">Red dashed line: 0.15 operating limit. Black line: float onset (FMI ≤ 0).</p>
       </Card>
 
-      <Card title="Float Margin Index" icon={Activity} className="lg:col-span-4">
+      <Card tour="fmi" title="Float Margin Index" icon={Activity} className="lg:col-span-4">
         <div className="flex items-baseline gap-3">
           <span className="text-5xl font-bold num">{fmt.n2(s.fmiMin.fmi)}</span>
           <Status tone={tone}>{tone === 'ok' ? 'Safe margin' : tone === 'warn' ? 'Near limit' : 'Below 0.15 limit'}</Status>
         </div>
         <p className="mt-1 text-sm text-ink-2">minimum over the string, at {s.fmiMin.z} m</p>
         <div className="mt-4 space-y-3">
-          <Eq>FMI(z) = (W_buoyant(z) − F_drag(z) − F_fric(z)) / W_buoyant(z)</Eq>
-          <Eq note="Laminar annular drag per unit length">f_drag ≈ 2π·μ·v_rod / ln(D_t/D_r)</Eq>
+          <Eq>{String.raw`\mathrm{FMI}(z) = \frac{W_{b}(z) - F_{drag}(z) - F_{fric}(z)}{W_{b}(z)}`}</Eq>
+          <Eq note="Laminar annular drag per unit length">{String.raw`f_{drag} \approx \frac{2\pi\,\mu\,v_{rod}}{\ln(D_t/D_r)}`}</Eq>
           <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
-            <div className="eq">(S·N)max ∝ 1 / μ(T_pump)</div>
+            <Tex block>{String.raw`(S \cdot N)_{\max} \propto \frac{1}{\mu(T_{pump})}`}</Tex>
             <p className="mt-1 text-xs text-ink-2">Maximum safe pumping speed is inversely proportional to viscosity at the pump. You can check this by hand.</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ function Diagnosis({ s }) {
           <ResponsiveContainer>
             <ScatterChart margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
               <CartesianGrid {...GRID} vertical />
-              <XAxis type="number" dataKey="x" {...AXIS} unit=" m" domain={[-0.2, 3.4]} />
+              <XAxis type="number" dataKey="x" {...AXIS} unit=" m" domain={[-0.2, +(FIELD.stroke * 1.15).toFixed(1)]} />
               <YAxis type="number" dataKey="L" {...AXIS} unit=" kN" width={52} />
               <Tooltip formatter={(v) => v.toFixed(1)} />
               <ReferenceLine y={0} stroke="#16161D" />
@@ -207,7 +207,9 @@ function Fatigue({ s }) {
             </ScatterChart>
           </ResponsiveContainer>
         </div>
-        <Eq note="SF = 0.9 service factor. Stress range ÷ allowable range = Goodman usage.">S_A = (T/4 + 0.5625·σ_min)·SF</Eq>
+        <Eq note={<><Tex>T</Tex>: tensile strength, <Tex>{String.raw`\mathrm{SF} = 0.9`}</Tex> service factor. Goodman usage = stress range ÷ allowable range.</>}>
+          {String.raw`S_A = \left(\frac{T}{4} + 0.5625\,\sigma_{\min}\right)\mathrm{SF}`}
+        </Eq>
       </Card>
       <div className="space-y-4 lg:col-span-5">
         <Card title="Consumed rod life">

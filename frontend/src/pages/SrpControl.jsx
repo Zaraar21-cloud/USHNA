@@ -52,7 +52,7 @@ export default function SrpControl({ ctx }) {
 
   return (
     <>
-      <PageHeader title="SRP control & safety envelope" subtitle="The MPC optimises an explicit objective under explicit constraints. A separate rule-based envelope sits between the optimizer and SCADA. It can clamp any setpoint and it logs the binding constraint every time." />
+      <PageHeader title="SRP control & safety envelope" subtitle="Try a pumping speed and see whether the safety rules let it through. Unsafe requests are clamped, and every veto is logged." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card title="Setpoint what-if (forward solve)" icon={SlidersHorizontal} className="lg:col-span-5">
           <Slider label="Strokes per minute" value={spm} min={2} max={9} step={0.1} onChange={setSpm} display={spm.toFixed(1)} />
@@ -113,7 +113,7 @@ export default function SrpControl({ ctx }) {
           <p className="mt-2 text-sm text-ink-2"><b className="text-ink">In heavy oil, the downstroke is the constrained half of the cycle.</b> A slow, controlled downstroke removes float and impact loading, and a faster upstroke wins back the cycle time.</p>
         </Card>
 
-        <Card title="Safety envelope log" icon={ShieldCheck} className="lg:col-span-5" pad="p-0">
+        <Card tour="envelope" title="Safety envelope log" icon={ShieldCheck} className="lg:col-span-5" pad="p-0">
           <div className="max-h-80 overflow-auto">
             <table className="w-full">
               <thead className="sticky top-0 border-y border-line bg-canvas"><tr>{['Time', 'Well', 'Requested → applied', 'Binding'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>

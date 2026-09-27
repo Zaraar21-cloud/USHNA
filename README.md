@@ -30,10 +30,38 @@ The system prioritizes explicit conservation equations and physical constraints 
 
 ## Implementation Status
 
-* Phase 1: Physics engine implementation (Marx-Langenheim, Boberg-Lantz, Walther Viscosity, Gibbs wave equation, FMI).
-* Phase 2: Synthetic data generator mimicking field sensor data, noise, and drift.
-* Phase 3: EnKF assimilation loop (Pending).
-* Phase 4: MPC controller (Pending).
+* Phase 1 (done): Physics engine (Marx-Langenheim, Boberg-Lantz, Ramey, Walther viscosity, Gibbs wave equation, FMI) in `src/physics`.
+* Phase 2 (done): Synthetic data generator mimicking field sensor data, noise and drift, in `src/data`.
+* Phase 3 (done): AI layer in `src/learning`, trained artefacts in `trained_models/`, tests in `tests/`:
+  * **PINN** (`pinn_training.py`, PyTorch): learns the heated-zone temperature field T(r, z, t; r_h) from the heat equation plus sparse DTS / observation-well data. It is released to the optimizer only after passing an accuracy gate on steam designs it never saw and a first-principles energy-conservation audit.
+  * **EnKF**: daily assimilation of temperature and rate into named physical parameters (kh, skin, heat loss, …) with uncertainty bands.
+  * **Bounded GP residual**: learns what the physics misses, hard-capped at ±15%.
+  * **Symbolic regression**: closed-form field correlations for engineer sign-off.
+  * **Inverse card diagnosis**: fault mechanism from the dynamometer card.
+* Phase 4 (partial): MPC and safety envelope run in the browser twin (`frontend/src/data/twin.js`) as a grid search over SPM and downstroke speed. A CasADi/IPOPT MPC is not built yet.
+* Prototype (done): React dashboard in `frontend/` that recomputes the full coupling chain live in the browser.
+
+## Data
+
+The prototype runs on **synthetic wells calibrated to published Baghewala parameters**. Oil India does not publish per-well telemetry for the field. Every anchor value and its citation is in [`DATA_SOURCES.md`](DATA_SOURCES.md).
+
+## Training the AI layer
+
+```bash
+pip install -r requirements.txt
+python scripts/train_ml_pipeline.py     # ~10 min on a laptop CPU; writes trained_models/*
+```
+
+The dashboard's **AI models** page reads `trained_models/*.json` directly, so retraining updates the numbers it shows.
+
+## Running the prototype
+
+```bash
+cd frontend
+npm install
+npm run dev     # http://localhost:3000
+npm run check   # physics sanity checks on the browser twin
+```
 
 ## Tech Stack
 

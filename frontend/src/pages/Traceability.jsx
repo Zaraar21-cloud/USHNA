@@ -1,10 +1,10 @@
 import React from 'react';
 import { ArrowDown, RotateCcw } from 'lucide-react';
-import { PageHeader, Card, Status } from '../components/ui';
+import { PageHeader, Card, Status, sub } from '../components/ui';
 
 const REQS = [
   ['Optimize CSS cycle parameters', 'Marx–Langenheim / Boberg–Lantz core driving NPV Bayesian optimization', 'CssDesign', 'CSS design'],
-  ['Predict reservoir heating, cooling and production', 'Thermal decline model + PINN surrogate, corrected by EnKF', 'Reservoir', 'Reservoir & CSS'],
+  ['Predict reservoir heating, cooling and production', 'Thermal decline model + trained PINN surrogate, corrected by EnKF', 'Learning', 'AI models'],
   ['Continuously optimize SRP stroke speed and SPM', 'MPC on the Gibbs rod model, driven by μ(T_pump)', 'SrpControl', 'SRP control'],
   ['Detect rod floating; minimise impact loading', 'Float Margin Index as live scalar and hard MPC constraint; asymmetric VFD stroke', 'RodString', 'Rod string'],
   ['Improve pump efficiency and equipment reliability', 'Inverse card diagnosis; fillage constraint; Goodman fatigue accounting', 'RodString', 'Card diagnosis'],
@@ -12,22 +12,24 @@ const REQS = [
   ['Reduce Steam–Oil Ratio', 'Cut-off rule plus soak-time and steam-volume optimization', 'CssDesign', 'Cycle design'],
   ['Lower energy per barrel', 'MPC energy term; no wasted work against float and fluid pound', 'SrpControl', 'SRP control'],
   ['Reduce rod failures and pump unsetting', 'FMI constraint, Lubinski buckling, Goodman envelope; slow downstroke', 'RodString', 'Fatigue & buckling'],
-  ['Data-driven and predictive decision making', 'Assimilation loop with uncertainty-quantified recommendations and backtesting', 'Learning', 'Learning layer'],
+  ['Data-driven and predictive decision making', 'Trained PINN surrogate, EnKF assimilation, bounded GP residual, symbolic regression', 'Learning', 'AI models'],
 ];
 
 const ROADMAP = [
   ['Physics engine: Marx–Langenheim, Boberg–Lantz, Ramey, Gibbs wave equation', 'ok', 'Done (src/physics)'],
   ['Synthetic data generator and live FMI monitor', 'ok', 'Done (src/data)'],
-  ['EnKF assimilation loop with collapsing uncertainty bands', 'warn', 'Pending: UI preview only'],
+  ['EnKF assimilation loop with collapsing uncertainty bands', 'ok', 'Done (src/learning/enkf.py)'],
+  ['PINN trained in PyTorch, validated on unseen designs, energy-audited', 'ok', 'Done (src/learning/pinn_training.py)'],
+  ['GP residual, symbolic regression, inverse card diagnosis', 'ok', 'Done (src/learning, trained_models)'],
   ['MPC controller and safety envelope, closed loop through a cooling cycle', 'warn', 'Pending: grid-search stand-in in UI'],
-  ['CSS optimizer and optimal-stopping cut-off; NPV and SOR vs history', 'warn', 'Pending: UI preview only'],
+  ['CSS optimizer and optimal-stopping cut-off; NPV and SOR vs history', 'warn', 'In-browser grid evaluation; GP-BO pending'],
   ['Dashboard, wellbore visualisation, backtest, explainability cards', 'ok', 'This prototype'],
 ];
 
 const Box = ({ title, children, tone = 'plain' }) => (
   <div className={`rounded-xl border px-4 py-3 text-center ${tone === 'safety' ? 'border-orange-200 bg-orange-50' : tone === 'obs' ? 'border-brand-200 bg-brand-50' : 'border-line bg-white'}`}>
     <div className="text-xs font-bold uppercase tracking-wide">{title}</div>
-    <div className="mt-1 text-xs text-ink-2">{children}</div>
+    <div className="mt-1 text-xs text-ink-2">{sub(children)}</div>
   </div>
 );
 const Down = () => <div className="flex justify-center py-1"><ArrowDown size={16} className="text-ink-3" /></div>;
@@ -35,7 +37,7 @@ const Down = () => <div className="flex justify-center py-1"><ArrowDown size={16
 export default function Traceability({ ctx }) {
   return (
     <>
-      <PageHeader title="Traceability" subtitle="Every setpoint traces back to a governing equation and a named physical parameter. This page maps the problem statement's required outcomes to the part of the system that delivers each one." />
+      <PageHeader title="Traceability" subtitle="Which part of the system answers each requirement in the problem statement, and how far each part is built." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card title="System architecture: a closed loop" className="lg:col-span-2">
           <div className="relative pr-8">
@@ -44,7 +46,7 @@ export default function Traceability({ ctx }) {
             <Box title="Data assimilation — EnKF">kh · skin · heat-loss coefficient · rod damping c · PVT · pump slippage</Box>
             <Down />
             <div className="rounded-xl border border-dashed border-viz-pink p-2">
-              <div className="mb-2 text-center text-[11px] font-semibold uppercase text-viz-pink">Physics core · coupled through μ(T_pump)</div>
+              <div className="mb-2 text-center text-[11px] font-semibold uppercase text-viz-pink">Physics core · coupled through μ({sub("T_pump")})</div>
               <div className="grid grid-cols-3 gap-2">
                 <Box title="Reservoir">M–L, B–L ⇒ r_h, T̄, q_o</Box>
                 <Box title="Wellbore">Ramey ⇒ T(z,t), T_pump</Box>
@@ -73,7 +75,7 @@ export default function Traceability({ ctx }) {
                   {REQS.map(([req, comp, page, label]) => (
                     <tr key={req} className="border-b border-line last:border-0 align-top">
                       <td className="td whitespace-normal font-medium">{req}</td>
-                      <td className="td whitespace-normal text-ink-2">{comp}</td>
+                      <td className="td whitespace-normal text-ink-2">{sub(comp)}</td>
                       <td className="td"><button onClick={() => ctx.go(page)} className="text-sm font-medium text-brand-600 hover:underline">{label} →</button></td>
                     </tr>
                   ))}

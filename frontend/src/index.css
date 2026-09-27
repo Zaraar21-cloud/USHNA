@@ -16,8 +16,19 @@
   .btn-ghost { @apply btn border border-line text-ink hover:bg-canvas; }
   .th { @apply px-4 py-3 text-left text-xs font-medium text-ink-3 whitespace-nowrap; }
   .td { @apply px-4 py-3 text-sm whitespace-nowrap num; }
-  .eq { @apply font-serif italic text-[15px] text-ink; }
 }
+
+/* Every chart carries its provenance, so no screenshot can pass for field data. */
+.recharts-responsive-container { position: relative; }
+.recharts-responsive-container::after {
+  content: 'synthetic · physics-generated';
+  position: absolute; top: 0; right: 4px;
+  font-size: 10px; letter-spacing: .02em; color: #A16207; opacity: .7; pointer-events: none;
+}
+.no-mark .recharts-responsive-container::after { display: none; }
+
+/* Guided-tour spotlight */
+.tour-focus { outline: 3px solid #7B4DFF; outline-offset: 4px; transition: outline-color .2s; }
 
 .recharts-cartesian-axis-tick-value { font-size: 11px; fill: #8C8C9A; }
 .recharts-default-tooltip { border-radius: 12px !important; border: 1px solid #E9E9EF !important; box-shadow: 0 8px 24px rgba(22,22,29,.08); font-size: 12px; }

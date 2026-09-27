@@ -39,7 +39,7 @@ def test_viscosity_law_discovery():
     T = np.linspace(320.0, 500.0, 30)
     asp = np.random.uniform(5.0, 20.0, 30)
     # Synthetic viscosity
-    rhs = 9.5 - 3.6 * np.log10(T) + 0.02 * asp
+    rhs = 7.0393 - 2.5617 * np.log10(T) + 0.02 * asp
     mu_true = 0.95 * (10.0 ** (10.0 ** rhs) - 0.7)
 
     eq = discoverer.discover_viscosity_law(T, asp, mu_true)

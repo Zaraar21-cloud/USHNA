@@ -159,8 +159,9 @@ def test_fmi_recommendation_restores_limit():
     t = np.linspace(0, 2 * np.pi, 100)
     u_surf = 1.25 * (1.0 - np.cos(t))
     f_surf = 35000.0 + 10000.0 * np.sin(t)
+    # 350 K (77 C): warm enough that slowing down can restore the margin at Baghewala viscosity
     result = pipeline.process_telemetry_step(
-        65.0, 321.0, 8.0, u_surf, f_surf, spm_current=6.5, intake_pressure_bar=8.0
+        65.0, 350.0, 8.0, u_surf, f_surf, spm_current=6.5, intake_pressure_bar=8.0
     )
     card = result['explainability_card']
     assert result['fmi'] < 0.15
@@ -168,3 +169,9 @@ def test_fmi_recommendation_restores_limit():
     assert match, card.expected_effect
     assert float(match.group(1)) >= 0.15
     assert "ensemble members agree" in card.confidence
+
+    # 321 K (48 C) is near-cold 15,000 cP oil: no SPM restores the margin, so none is promised
+    cold = USHNAPipeline(seed=42).process_telemetry_step(
+        65.0, 321.0, 8.0, u_surf, f_surf, spm_current=6.5, intake_pressure_bar=8.0
+    )
+    assert "until viscosity" in cold['explainability_card'].expected_effect

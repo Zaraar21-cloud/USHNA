@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, LabelList,
 } from 'recharts';
-import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown } from 'lucide-react';
-import { PageHeader, Card, StatRow, Avatar, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend } from '../components/ui';
+import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown, BookOpen } from 'lucide-react';
+import { PageHeader, Card, StatRow, Avatar, sub, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend } from '../components/ui';
 import RecCard from '../components/RecCard';
-import { FIELD } from '../data/twin';
+import { AiStrip } from './Learning';
+import { FIELD, SOURCES } from '../data/twin';
 
 export default function Overview({ ctx }) {
   const [tab, setTab] = useState('Overview');
@@ -13,7 +14,7 @@ export default function Overview({ ctx }) {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle={`${FIELD.field}, Rajasthan · ${FIELD.formation} · ${FIELD.api}. One scalar, μ(T_pump), flows from the thermal model into the pump control law.`}
+        subtitle={`${FIELD.field}, Rajasthan, 6 of 35 wells modelled. How hot the oil at the pump is, how thick that makes it, and whether the rods are safe at today's pumping speed.`}
         tabs={['Overview', 'Fleet envelope']}
         tab={tab}
         onTab={setTab}
@@ -37,6 +38,16 @@ function OverviewTab({ ctx }) {
 
   return (
     <div className="space-y-6">
+      <FieldCard />
+
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[15px] font-semibold">AI layer: the trained models behind this twin</h2>
+          <button onClick={() => ctx.go('Learning')} className="text-sm font-medium text-brand-600 hover:underline">Open AI models</button>
+        </div>
+        <AiStrip onPick={(t) => { ctx.setLearnTab(t); ctx.go('Learning'); }} />
+      </section>
+
       {/* Summary header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -76,6 +87,22 @@ function OverviewTab({ ctx }) {
 
       <WellsTable ctx={ctx} />
     </div>
+  );
+}
+
+function FieldCard() {
+  return (
+    <Card title="Field card: where the numbers come from" icon={BookOpen} right={<span className="text-xs text-ink-3">synthetic wells calibrated to these published values</span>}>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+        {SOURCES.map(([k, v, src]) => (
+          <div key={k} className="border-l-2 border-amber-300 pl-3">
+            <dt className="text-xs text-ink-3">{k}</dt>
+            <dd className="text-sm font-semibold">{v}</dd>
+            <dd className="text-xs text-ink-2">{src}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
   );
 }
 
@@ -153,7 +180,7 @@ function EnthalpyCard({ s, r }) {
       }
     >
       <div className="flex items-center gap-4">
-        <div className="h-28 w-28 shrink-0">
+        <div className="no-mark h-28 w-28 shrink-0">
           <ResponsiveContainer>
             <PieChart>
               <Pie data={parts} dataKey="v" innerRadius={34} outerRadius={54} stroke="#fff" strokeWidth={2} isAnimationActive={false}>
@@ -204,8 +231,8 @@ function TrajectoryCard({ s }) {
               <YAxis yAxisId="mu" orientation="right" {...AXIS} width={44} />
               <Tooltip formatter={(v) => (v == null ? '—' : fmt.n0(v))} labelFormatter={(l) => `Production day ${l}`} />
               {markers('t')}
-              <Line yAxisId="t" dataKey="TpH" name="T_pump °C" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="t" dataKey="TpP" name="T_pump (proj.)" stroke={VIZ.orange} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
+              <Line yAxisId="t" dataKey="TpH" name="Pump temp °C" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="t" dataKey="TpP" name="Pump temp (proj.)" stroke={VIZ.orange} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
               <Line yAxisId="mu" dataKey="muH" name="μ cP" stroke={VIZ.pink} dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line yAxisId="mu" dataKey="muP" name="μ (proj.)" stroke={VIZ.pink} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
             </LineChart>
@@ -311,14 +338,14 @@ function FleetTab({ ctx }) {
     <div className="space-y-6">
       <Card title="Operating envelope across the field" icon={ShieldAlert} right={<span className="text-xs text-ink-3">bubble size = oil rate</span>}>
         <p className="mb-4 max-w-3xl text-sm text-ink-2">
-          Every well sits somewhere on the same physics: as μ(T_pump) climbs through the cycle, float margin falls unless SPM or downstroke speed comes down.
+          Every well sits somewhere on the same physics: as μ({sub("T_pump")}) climbs through the cycle, float margin falls unless SPM or downstroke speed comes down.
           Wells below the red line need action now.
         </p>
         <div className="h-80">
           <ResponsiveContainer>
             <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
               <CartesianGrid {...GRID} vertical />
-              <XAxis dataKey="mu" type="number" name="μ pump" unit=" cP" scale="log" domain={[30, 3000]} {...AXIS} ticks={[30, 100, 300, 1000, 3000]} />
+              <XAxis dataKey="mu" type="number" name="μ pump" unit=" cP" scale="log" domain={[30, 10000]} {...AXIS} ticks={[30, 100, 300, 1000, 3000, 10000]} />
               <YAxis dataKey="fmi" type="number" name="Min FMI" {...AXIS} domain={[-0.5, 1]} width={44} />
               <ZAxis dataKey="oil" range={[120, 700]} />
               <Tooltip formatter={(v, n) => [typeof v === 'number' ? v.toFixed(n === 'Min FMI' ? 2 : 0) : v, n]} />

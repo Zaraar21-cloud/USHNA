@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar as RBar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ReferenceDot } from 'recharts';
 import { Timer, Grid3x3, History } from 'lucide-react';
-import { PageHeader, Card, StatRow, Eq, Legend, VIZ, AXIS, GRID, fmt, Toggle } from '../components/ui';
+import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt, Toggle } from '../components/ui';
 import { FIELD } from '../data/twin';
 
 const TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest'];
@@ -10,10 +10,10 @@ export default function CssDesign({ ctx }) {
   const [tab, setTab] = useState(TABS[0]);
   return (
     <>
-      <PageHeader title="CSS design & cut-off" subtitle="When to stop producing is the biggest economic lever in the operation, and today it's decided by habit. Here it's recomputed every day from the twin." tabs={TABS} tab={tab} onTab={setTab} />
+      <PageHeader title="CSS design & cut-off" subtitle="When to stop producing and steam the well again, and how much steam to use next time." tabs={TABS} tab={tab} onTab={setTab} />
       {tab === TABS[0] && <Cutoff s={ctx.s} />}
       {tab === TABS[1] && <Design ctx={ctx} />}
-      {tab === TABS[2] && <Backtest well={ctx.well} />}
+      {tab === TABS[2] && <Backtest well={ctx.well} design={ctx.design} />}
     </>
   );
 }
@@ -41,7 +41,7 @@ function Cutoff({ s }) {
           </ResponsiveContainer>
         </div>
         <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
-          <div className="eq">Stop producing and re-inject when π(t) ≤ π̄*</div>
+          <div className="text-[15px] text-ink">Stop producing and re-inject when <Tex>{String.raw`\pi(t) \le \bar{\pi}^{*}`}</Tex></div>
           <p className="mt-1 text-xs text-ink-2">Keep producing only while this well earns more than the average of starting a new cycle, counting injection cost and soak downtime. π(t) falls steadily as T̄ drops, so there is a single crossing point.</p>
         </div>
       </Card>
@@ -106,11 +106,14 @@ function Design({ ctx }) {
               <span className="flex items-center gap-1"><span className="h-3 w-3 rounded ring-2 ring-viz-orange" /> current design</span>
               <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-ink/60" /> physics-model call ({design.calls})</span>
               <span>darker = better {metric}</span>
+              <span className="text-amber-700">synthetic · physics-generated</span>
             </div>
           </div>
         </div>
         <div className="mt-4">
-          <Eq note="Subject to formation fracture pressure, boiler capacity, casing/cement thermal limits and minimum cycle economics.">max NPV = Σₜ (R_o·q_o(t) − C_steam·V_s − C_energy·E(t) − C_fail·λ(t)) / (1+r)ᵗ</Eq>
+          <Eq note="Subject to formation fracture pressure, boiler capacity, casing/cement thermal limits and minimum cycle economics.">
+            {String.raw`\max_{V_s,\ t_{soak}}\ \mathrm{NPV} = \sum_{t} \frac{R_o\,q_o(t) - C_{steam}\,V_s - C_{energy}\,E(t) - C_{fail}\,\lambda(t)}{(1+r)^{t}}`}
+          </Eq>
         </div>
       </Card>
       <Card title={`Cycle ${well.cycle + 1} proposal`} icon={Grid3x3}>
@@ -128,10 +131,10 @@ function Design({ ctx }) {
   );
 }
 
-function Backtest({ well }) {
+function Backtest({ well, design }) {
   const data = Array.from({ length: well.cycle }, (_, i) => {
     const c = i + 1;
-    const hSor = 4.1 + 0.25 * Math.sin(c * 1.7) + 0.1 * c;
+    const hSor = design.current.sor * 1.15 + 0.4 * Math.sin(c * 1.7) + 0.1 * c; // habit cut-off runs above the twin's SOR
     return {
       cycle: `C${c}`,
       hSor, uSor: hSor * (0.8 - 0.01 * c),

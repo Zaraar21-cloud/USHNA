@@ -98,7 +98,7 @@ class SymbolicEquationDiscoverer:
                 (T, asp),
                 mu,
                 p0=[A_val, B_val, max(C_val, 1e-4), 1.0],
-                bounds=([7.0, 2.0, 0.0, 0.5], [12.0, 5.0, 0.5, 2.5]),
+                bounds=([5.0, 1.5, 0.0, 0.5], [12.0, 5.0, 0.5, 2.5]),
                 maxfev=2000
             )
             A_f, B_f, C_f, gamma_f = popt
