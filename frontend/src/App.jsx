@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Shell from './components/Shell';
-import { WELLS, FIELD, buildState, envelope, recommendations, designSpace, REQUIRED_FIELDS } from './data/twin';
+import { WELLS, FIELD, buildState, envelope, recommendations, designSpace, REQUIRED_FIELDS, applyCalibration, calibDefaults, sourceRows } from './data/twin';
 import Overview from './pages/Overview';
 import Reservoir from './pages/Reservoir';
 import Wellbore from './pages/Wellbore';
@@ -56,13 +56,16 @@ export default function App() {
   const [log, setLog] = useState(SEED_LOG);
   const [playing, setPlaying] = useState(false);
   const [learnTab, setLearnTab] = useState(LEARN_TABS[0]);
+  // Accepted field calibration (About this data). Applying it rewrites the twin's constants, so every derived value recomputes.
+  const [calib, setCalib] = useState(calibDefaults);
+  const acceptCalib = (next) => { applyCalibration(next); stateCache.clear(); setCalib(next); };
 
   const well = WELLS.find((w) => w.id === wellId);
   const day = days[wellId] ?? well.day;
   const setpoint = setpoints[wellId];
 
-  const s = useMemo(() => buildState(well, day, setpoint), [well, day, setpoint]);
-  const design = useMemo(() => designSpace(well), [well]);
+  const s = useMemo(() => buildState(well, day, setpoint), [well, day, setpoint, calib]); // eslint-disable-line react-hooks/exhaustive-deps -- calib changes the twin's constants
+  const design = useMemo(() => designSpace(well), [well, calib]); // eslint-disable-line react-hooks/exhaustive-deps
   const recs = useMemo(() => recommendations(s, design), [s, design]);
   const shown = recs.filter((r) => REQUIRED_FIELDS.every((k) => r[k]));
   const fleet = useMemo(
@@ -70,13 +73,22 @@ export default function App() {
     [s, wellId, days, setpoints],
   );
 
-  // Run cycle: animate day 0 → horizon in ~15 s so the page drives itself.
+  // Run cycle (demo): injection + soak pre-roll (demoT < 0), then production day 0 → horizon in ~15 s.
+  const [demoT, setDemoT] = useState(null);
+  const [pace, setPace] = useState(1);
+  const [demoOpen, setDemoOpen] = useState(true); // panel expanded, or minimised to a chip while the demo keeps running
   useEffect(() => {
     if (!playing) return;
-    const id = setInterval(() => setDays((p) => ({ ...p, [wellId]: Math.min(FIELD.horizon, (p[wellId] ?? 0) + 1) })), 15000 / FIELD.horizon);
-    return () => clearInterval(id);
-  }, [playing, wellId]);
-  useEffect(() => { if (playing && day >= FIELD.horizon) setPlaying(false); }, [playing, day]);
+    if (demoT >= FIELD.horizon) { setPlaying(false); return; }
+    const id = setTimeout(() => {
+      const t = demoT + 1;
+      setDemoT(t);
+      if (t >= 0) setDays((p) => ({ ...p, [wellId]: t }));
+    }, (demoT < 0 ? 400 : 15000 / FIELD.horizon) / pace); // pre-roll ticks slower so injection and soak stay readable
+    return () => clearTimeout(id);
+  }, [playing, demoT, wellId, pace]);
+  const stopDemo = () => { setPlaying(false); setDemoT(null); };
+
 
   // Every setpoint goes through the safety envelope; every outcome is logged.
   function submit(req) {
@@ -89,15 +101,27 @@ export default function App() {
 
   const ctx = {
     s, well, day, design, recs: shown, suppressed: recs.length - shown.length, allRecs: recs, fleet, log,
-    setDay: (d) => { setPlaying(false); setDays((p) => ({ ...p, [wellId]: d })); },
-    resetDay: () => { setPlaying(false); setDays((p) => { const { [wellId]: _, ...rest } = p; return rest; }); },
-    selectWell: (id) => { setPlaying(false); setWellId(id); },
+    setDay: (d) => { stopDemo(); setDays((p) => ({ ...p, [wellId]: d })); },
+    resetDay: () => { stopDemo(); setDays((p) => { const { [wellId]: _, ...rest } = p; return rest; }); },
+    selectWell: (id) => { stopDemo(); setWellId(id); },
     playing,
+    demoT,
+    stopDemo,
+    pace,
+    setPace,
+    demoOpen,
+    setDemoOpen,
+    calib,
+    acceptCalib,
+    sources: sourceRows(calib),
     learnTab,
     setLearnTab,
     runCycle: () => {
       if (playing) return setPlaying(false);
+      if (demoT != null && demoT < FIELD.horizon) return setPlaying(true); // resume
       setDays((p) => ({ ...p, [wellId]: 0 }));
+      setDemoT(-(FIELD.tInj + well.soak));
+      setDemoOpen(true);
       setPlaying(true);
     },
     submit,
@@ -107,7 +131,8 @@ export default function App() {
 
   return (
     <Shell page={page} go={go} ctx={ctx}>
-      <Boundary page={page}><Page ctx={ctx} /></Boundary>
+      {/* keyed on calibration so pages' own memoised physics recompute */}
+      <Boundary page={page}><Page key={JSON.stringify(calib)} ctx={ctx} /></Boundary>
     </Shell>
   );
 }

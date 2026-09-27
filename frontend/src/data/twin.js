@@ -21,13 +21,24 @@ export const FIELD = {
 };
 
 // Published anchors the synthetic wells are calibrated to (Field Card, DATA_SOURCES.md).
-export const SOURCES = [
-  ['Crude viscosity', '10,000–13,000 cP @ 50 °C', 'Oil India, Rajasthan Fields'],
-  ['API gravity', '17–19°', 'SIH PS 26120'],
-  ['Reservoir temperature', '46–48 °C', 'SIH PS 26120'],
+// CALIBRATION rows feed the physics (the model uses each range's midpoint) and are viewer-editable;
+// SOURCE_NOTES are context only.
+export const CALIBRATION = [
+  { key: 'mu50', label: 'Crude viscosity', range: [10000, 13000], unit: ' cP @ 50 °C', bounds: [1000, 100000], src: 'Oil India, Rajasthan Fields' },
+  { key: 'api', label: 'API gravity', range: [17, 19], unit: '°', bounds: [10, 25], src: 'SIH PS 26120' },
+  { key: 'T_R', label: 'Reservoir temperature', range: [46, 48], unit: ' °C', bounds: [30, 80], src: 'SIH PS 26120' },
+  { key: 'pumpDepth', label: 'Pump setting depth', range: [1100], unit: ' m', bounds: [600, 1600], src: 'SPE 23APOG-535203' },
+];
+export const SOURCE_NOTES = [
   ['Formation', 'Jodhpur Sandstone, 16–25% porosity', 'Bikaner–Nagaur basin literature'],
   ['Field size', '200.26 km², 35 wells, >600 bbl/day', 'Oil India / EOI-014-2024'],
-  ['Pump setting depth', '~1100 m', 'SPE 23APOG-535203'],
+];
+export const calibDefaults = () => Object.fromEntries(CALIBRATION.map((c) => [c.key, c.range]));
+export const mid = (r) => (r[0] + r.at(-1)) / 2;
+export const fmtCalib = (c, r) => r.map((x) => x.toLocaleString('en-IN')).join('–') + c.unit;
+export const sourceRows = (calib) => [
+  ...CALIBRATION.map((c) => [c.label, fmtCalib(c, calib[c.key]), c.src, calib[c.key].join() !== c.range.join()]),
+  ...SOURCE_NOTES.map(([k, v, src]) => [k, v, src, false]),
 ];
 
 // Rod string: tapered 1" over 7/8" with sinker bars (API 11L style weights, N/m).
@@ -42,8 +53,13 @@ export const ROD = {
 
 const log10 = Math.log10;
 
-// ── Viscosity: ASTM D341 / Walther, fitted to μ(50 °C)=11,500 cP (Oil India: 10,000–13,000 cP) and μ(250 °C)=14 cP ──
-export const WALTHER = { A: 7.0393, B: 2.5617 };
+// ── Viscosity: ASTM D341 / Walther through two anchors, μ(50 °C) (Oil India: 10,000–13,000 cP) and μ(250 °C)=14 cP ──
+function fitWalther(mu50, rho) {
+  const y = (mu) => log10(log10(mu / rho + 0.7)), x1 = log10(323.15), x2 = log10(523.15);
+  const B = (y(mu50) - y(14)) / (x2 - x1);
+  return { A: y(mu50) + B * x1, B };
+}
+export const WALTHER = fitWalther(11500, FIELD.rho); // A ≈ 7.039, B ≈ 2.562
 export function viscosity(tC) {
   const ll = WALTHER.A - WALTHER.B * log10(tC + 273.15);
   return (10 ** (10 ** ll) - 0.7) * FIELD.rho; // cP
@@ -76,6 +92,18 @@ export function tubingProfile(Tpump, gross) {
     out.push({ z, T, Tgeo: Tg(z), mu: viscosity(T) });
   }
   return out;
+}
+
+// ── Apply edited calibration: every function reads FIELD / WALTHER / ROD at call time ──
+const ROD_BASE = ROD.sections.map((s) => ({ ...s }));
+const sg = (api) => 141.5 / (131.5 + api);
+export function applyCalibration(v) {
+  FIELD.T_R = mid(v.T_R);
+  FIELD.rho = 0.95 * sg(mid(v.api)) / sg(18); // density follows API gravity; 0.95 at the published 18° midpoint
+  FIELD.pumpDepth = Math.round(mid(v.pumpDepth));
+  const k = FIELD.pumpDepth / 1100;
+  ROD.sections = ROD_BASE.map((s) => ({ ...s, from: s.from * k, to: s.to * k })); // taper keeps its proportions
+  Object.assign(WALTHER, fitWalther(mid(v.mu50), FIELD.rho));
 }
 
 const sectionAt = (z) => ROD.sections.find((s) => z < s.to) || ROD.sections.at(-1);

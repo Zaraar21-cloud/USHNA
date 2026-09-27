@@ -175,7 +175,7 @@ function Viscosity({ s }) {
         <div className="mt-3">
           <StatRow label="A" value={WALTHER.A.toFixed(3)} />
           <StatRow label="B" value={WALTHER.B.toFixed(3)} />
-          <StatRow label="μ at T_R (47 °C)" value={fmt.n0(viscosity(FIELD.T_R))} unit="cP" />
+          <StatRow label={`μ at T_R (${FIELD.T_R} °C)`} value={fmt.n0(viscosity(FIELD.T_R))} unit="cP" />
           <StatRow label="μ at T_s (250 °C)" value={fmt.n0(viscosity(FIELD.T_s))} unit="cP" />
           <StatRow label="Swing T_R → T_s" value={`${fmt.n0(viscosity(FIELD.T_R) / viscosity(FIELD.T_s))}×`} />
           <StatRow label="Asphaltene onset" value={FIELD.T_onset} unit="°C" tone={s.asphaltene ? 'warn' : 'ok'} />

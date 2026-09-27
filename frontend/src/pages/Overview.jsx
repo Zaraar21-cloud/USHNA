@@ -6,7 +6,7 @@ import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, F
 import { PageHeader, Card, StatRow, Avatar, sub, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend } from '../components/ui';
 import RecCard from '../components/RecCard';
 import { AiStrip } from './Learning';
-import { FIELD, SOURCES } from '../data/twin';
+import { FIELD } from '../data/twin';
 
 export default function Overview({ ctx }) {
   const [tab, setTab] = useState('Overview');
@@ -38,12 +38,12 @@ function OverviewTab({ ctx }) {
 
   return (
     <div className="space-y-6">
-      <FieldCard />
+      <FieldCard sources={ctx.sources} />
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[15px] font-semibold">AI layer: the trained models behind this twin</h2>
-          <button onClick={() => ctx.go('Learning')} className="text-sm font-medium text-brand-600 hover:underline">Open AI models</button>
+          <button onClick={() => ctx.go('Learning')} className="text-sm font-medium text-brand-600 hover:underline">Open Learning Layers</button>
         </div>
         <AiStrip onPick={(t) => { ctx.setLearnTab(t); ctx.go('Learning'); }} />
       </section>
@@ -90,14 +90,14 @@ function OverviewTab({ ctx }) {
   );
 }
 
-function FieldCard() {
+function FieldCard({ sources }) {
   return (
     <Card title="Field card: where the numbers come from" icon={BookOpen} right={<span className="text-xs text-ink-3">synthetic wells calibrated to these published values</span>}>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-        {SOURCES.map(([k, v, src]) => (
+        {sources.map(([k, v, src, edited]) => (
           <div key={k} className="border-l-2 border-amber-300 pl-3">
             <dt className="text-xs text-ink-3">{k}</dt>
-            <dd className="text-sm font-semibold">{v}</dd>
+            <dd className="text-sm font-semibold">{v}{edited && <span className="ml-1 text-[10px] font-normal text-brand-600">edited</span>}</dd>
             <dd className="text-xs text-ink-2">{src}</dd>
           </div>
         ))}

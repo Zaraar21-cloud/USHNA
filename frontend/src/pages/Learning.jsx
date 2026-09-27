@@ -13,7 +13,7 @@ export default function Learning({ ctx }) {
   return (
     <>
       <PageHeader
-        title="AI models"
+        title="Learning Layers"
         subtitle="The AI half of the digital twin: four models that learn from the well's data. Each one is bounded by physics and has to pass a check before the twin trusts it."
         tabs={LEARN_TABS} tab={tab} onTab={ctx.setLearnTab}
       />

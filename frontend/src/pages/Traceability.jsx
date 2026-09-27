@@ -4,7 +4,7 @@ import { PageHeader, Card, Status, sub } from '../components/ui';
 
 const REQS = [
   ['Optimize CSS cycle parameters', 'Marx–Langenheim / Boberg–Lantz core driving NPV Bayesian optimization', 'CssDesign', 'CSS design'],
-  ['Predict reservoir heating, cooling and production', 'Thermal decline model + trained PINN surrogate, corrected by EnKF', 'Learning', 'AI models'],
+  ['Predict reservoir heating, cooling and production', 'Thermal decline model + trained PINN surrogate, corrected by EnKF', 'Learning', 'Learning Layers'],
   ['Continuously optimize SRP stroke speed and SPM', 'MPC on the Gibbs rod model, driven by μ(T_pump)', 'SrpControl', 'SRP control'],
   ['Detect rod floating; minimise impact loading', 'Float Margin Index as live scalar and hard MPC constraint; asymmetric VFD stroke', 'RodString', 'Rod string'],
   ['Improve pump efficiency and equipment reliability', 'Inverse card diagnosis; fillage constraint; Goodman fatigue accounting', 'RodString', 'Card diagnosis'],
@@ -12,7 +12,7 @@ const REQS = [
   ['Reduce Steam–Oil Ratio', 'Cut-off rule plus soak-time and steam-volume optimization', 'CssDesign', 'Cycle design'],
   ['Lower energy per barrel', 'MPC energy term; no wasted work against float and fluid pound', 'SrpControl', 'SRP control'],
   ['Reduce rod failures and pump unsetting', 'FMI constraint, Lubinski buckling, Goodman envelope; slow downstroke', 'RodString', 'Fatigue & buckling'],
-  ['Data-driven and predictive decision making', 'Trained PINN surrogate, EnKF assimilation, bounded GP residual, symbolic regression', 'Learning', 'AI models'],
+  ['Data-driven and predictive decision making', 'Trained PINN surrogate, EnKF assimilation, bounded GP residual, symbolic regression', 'Learning', 'Learning Layers'],
 ];
 
 const ROADMAP = [
