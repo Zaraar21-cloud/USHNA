@@ -55,6 +55,25 @@ const TOUR = [
     text: () => 'Every setpoint you just saw is logged with its equation, its inputs and who approved it. That record is the Traceability page: open it and check any number on this site back to the line of physics that produced it.' },
 ];
 
+// Where the numbers come from: the in-browser twin (default, works as a static site) or the FastAPI edge service.
+function SourceToggle({ ctx, className = '' }) {
+  const opt = (id, label) => (
+    <button
+      onClick={() => ctx.setSource(id)} aria-pressed={ctx.source === id}
+      className={`rounded-full px-2.5 py-1 ${ctx.source === id ? 'bg-brand-500 text-white' : 'text-ink-2 hover:text-ink'}`}
+    >{label}</button>
+  );
+  return (
+    <div
+      className={`${className} items-center gap-0.5 rounded-full p-0.5 text-xs font-medium ring-1 ${ctx.apiError ? 'ring-red-300' : 'ring-line'}`}
+      title={ctx.apiError ? `API unreachable (${ctx.apiError}); showing local physics` : 'Data source: local physics in the browser, or the FastAPI edge service'}
+    >
+      {opt('local', 'Local')}
+      {opt('api', ctx.apiError ? 'API ⚠' : 'API')}
+    </div>
+  );
+}
+
 const SEEN_KEY = 'ushna.aboutSeen';
 const firstVisit = () => { try { return !localStorage.getItem(SEEN_KEY); } catch { return true; } };
 
@@ -210,6 +229,7 @@ export default function Shell({ page, go, ctx, children }) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <SourceToggle ctx={ctx} className="hidden md:flex" />
           <RunButton ctx={ctx} className="w-9 justify-center rounded-full border border-line hover:bg-canvas lg:hidden" iconOnly />
           <button onClick={startTour} className={`${PILL} w-9 justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 sm:w-auto sm:px-3.5`} aria-label="Start the guided tour, about 2 minutes">
             <Compass size={16} />

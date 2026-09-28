@@ -67,7 +67,7 @@ export default function SrpControl({ ctx }) {
             <button onClick={() => { setSpm(s.mpc.spm); setDown(s.mpc.down); }} className="ml-2 font-medium text-brand-600 hover:underline">load</button>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button onClick={() => setResult(ctx.submit({ spm: +spm.toFixed(1), down: +down.toFixed(2) }))} className="btn-primary">
+            <button onClick={() => Promise.resolve(ctx.submit({ spm: +spm.toFixed(1), down: +down.toFixed(2) })).then(setResult)} className="btn-primary">
               <ShieldCheck size={15} /> Submit through envelope
             </button>
             {result && (

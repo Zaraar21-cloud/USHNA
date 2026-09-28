@@ -1,0 +1,58 @@
+# Whole edge stack from a cold clone:  docker compose up --build
+# Dashboard + API: http://localhost:8000   (OpenAPI docs at /docs)
+# Nothing here needs an external host at runtime; the edge runs on a disconnected network.
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: ushna
+      POSTGRES_USER: ushna
+      POSTGRES_PASSWORD: ushna
+    ports: ["5432:5432"]
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/10-ushna-schema.sql:ro
+      - timescale-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ushna -d ushna"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # API + MQTT bridge in one process. No depends_on: it retries the broker and buffers
+  # rows while the database is away, so it starts and keeps running without either.
+  ushna-edge:
+    build: .
+    environment:
+      MQTT_HOST: mosquitto
+      DATABASE_URL: postgresql://ushna:ushna@timescaledb:5432/ushna
+    ports: ["8000:8000"]
+    restart: unless-stopped
+
+  simulator:
+    build: .
+    command: ["python", "-m", "ushna.data.mqtt_publisher", "--interval", "1"]
+    environment:
+      MQTT_HOST: mosquitto
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  timescale-data:

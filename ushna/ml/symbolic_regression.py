@@ -9,7 +9,7 @@ Fits the coefficients of fixed, physics-motivated closed-form templates:
 3. Rod-failure hazard expression: H(delta_F, t_comp)
 
 The equation *forms* are chosen by hand; only their coefficients are learned.
-Free-form structure search (e.g. PySR, listed in requirements.txt) is not done here.
+Free-form structure search (e.g. PySR) is not done here.
 Outputs printable equations with units and fit metrics for engineering review.
 """
 

@@ -11,6 +11,7 @@ import SrpControl from './pages/SrpControl';
 import CssDesign from './pages/CssDesign';
 import Telemetry from './pages/Telemetry';
 import Traceability from './pages/Traceability';
+import { fetchState, submitSetpoint } from './data/api';
 
 class Boundary extends React.Component {
   state = { error: null };
@@ -64,7 +65,22 @@ export default function App() {
   const day = days[wellId] ?? well.day;
   const setpoint = setpoints[wellId];
 
-  const s = useMemo(() => buildState(well, day, setpoint), [well, day, setpoint, calib]); // eslint-disable-line react-hooks/exhaustive-deps -- calib changes the twin's constants
+  const local = useMemo(() => buildState(well, day, setpoint), [well, day, setpoint, calib]); // eslint-disable-line react-hooks/exhaustive-deps -- calib changes the twin's constants
+
+  // Data source: 'local' (twin.js in the browser, default) or 'api' (FastAPI edge service).
+  // In API mode the local state stays on screen until the server answers, and if it fails.
+  const [source, setSource] = useState('local');
+  const [remote, setRemote] = useState({ state: null, error: null });
+  useEffect(() => {
+    if (source !== 'api') return;
+    let live = true;
+    fetchState(well.id, day, setpoint)
+      .then((st) => live && setRemote({ state: { ...st, well }, error: null }))
+      .catch((e) => live && setRemote((r) => ({ ...r, error: e.message })));
+    return () => { live = false; };
+  }, [source, well, day, setpoint]);
+  const fresh = remote.state && remote.state.well.id === well.id && remote.state.day === day;
+  const s = source === 'api' && fresh ? remote.state : local;
   const design = useMemo(() => designSpace(well), [well, calib]); // eslint-disable-line react-hooks/exhaustive-deps
   const recs = useMemo(() => recommendations(s, design), [s, design]);
   const shown = recs.filter((r) => REQUIRED_FIELDS.every((k) => r[k]));
@@ -91,12 +107,19 @@ export default function App() {
 
 
   // Every setpoint goes through the safety envelope; every outcome is logged.
-  function submit(req) {
-    const { applied, binding } = envelope(well, day, req);
+  // In API mode the server's envelope decides (callers await the result either way).
+  function record(req, { applied, binding }) {
     setSetpoints((p) => ({ ...p, [wellId]: applied }));
     const label = (x) => `SPM ${x.spm.toFixed(1)} · down ${Math.round(x.down * 100)}%`;
     setLog((l) => [{ time: clock(), well: wellId, requested: label(req), applied: label(applied), binding, action: binding ? 'clamped' : 'accepted' }, ...l]);
     return { applied, binding };
+  }
+  function submit(req) {
+    if (source !== 'api') return record(req, envelope(well, day, req));
+    return submitSetpoint(wellId, day, req).then((r) => record(req, r), (e) => {
+      setRemote((r) => ({ ...r, error: e.message }));
+      return record(req, envelope(well, day, req)); // server unreachable: the local envelope still guards
+    });
   }
 
   const ctx = {
@@ -126,6 +149,9 @@ export default function App() {
     },
     submit,
     go,
+    source,
+    setSource,
+    apiError: source === 'api' ? remote.error : null,
   };
   const Page = PAGES[page];
 

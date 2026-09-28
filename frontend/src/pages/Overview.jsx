@@ -172,7 +172,7 @@ function ControlCard({ ctx }) {
             <p role="status" className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700"><ShieldCheck size={15} /> Within safety envelope</p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button onClick={() => setResult(ctx.submit(p))} disabled={!changed} className="btn-primary disabled:opacity-40">
+            <button onClick={() => Promise.resolve(ctx.submit(p)).then(setResult)} disabled={!changed} className="btn-primary disabled:opacity-40">
               <ShieldCheck size={15} /> Apply through envelope
             </button>
             <button onClick={() => move(live)} disabled={!changed} className="btn-ghost disabled:opacity-40"><RotateCcw size={14} /> Reset</button>
