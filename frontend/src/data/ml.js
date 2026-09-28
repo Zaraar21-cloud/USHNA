@@ -1,9 +1,9 @@
-// The AI layer's real outputs, read straight from trained_models/ (written by scripts/train_ml_pipeline.py).
+// The AI layer's real outputs, read straight from ushna/ml/artifacts/ (written by python -m ushna.ml.train).
 // Nothing here is invented in the browser: retrain in Python and these numbers change.
-import pinn from '../../../trained_models/pinn_training.json';
-import enkf from '../../../trained_models/enkf_assimilation_trace.json';
-import gp from '../../../trained_models/gp_residual_report.json';
-import eqs from '../../../trained_models/discovered_equations.json';
+import pinn from '../../../ushna/ml/artifacts/pinn_training.json';
+import enkf from '../../../ushna/ml/artifacts/enkf_assimilation_trace.json';
+import gp from '../../../ushna/ml/artifacts/gp_residual_report.json';
+import eqs from '../../../ushna/ml/artifacts/discovered_equations.json';
 
 export { pinn, enkf, gp, eqs };
 

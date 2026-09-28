@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.learning.pinn_training import (
+from ushna.ml.pinn_training import (
     solve_cooling, enthalpy_gj, theta0, train_pinn, TrainConfig, TrainedPINN, energy_audit, HALF_PAY,
 )
 

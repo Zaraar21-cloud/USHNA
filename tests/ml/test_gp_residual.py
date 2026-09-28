@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.gp_residual import BoundedGPResidualModel, BoundedGPOutput
+from ushna.ml.gp_residual import BoundedGPResidualModel, BoundedGPOutput
 
 
 def test_bounded_gp_hard_limits():

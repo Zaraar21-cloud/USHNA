@@ -1,5 +1,5 @@
 """
-USHNA Machine Learning Layer (src/learning)
+USHNA Machine Learning Layer (ushna.ml)
 
 Contains the five ML components:
 1. Ensemble Kalman Filter (EnKF) - Data assimilation
@@ -10,25 +10,25 @@ Contains the five ML components:
 6. USHNAPipeline - End-to-end orchestrator & explainability card generator
 """
 
-from src.learning.enkf import EnsembleKalmanFilter, ParameterSpec
-from src.learning.inverse_diagnosis import (
+from ushna.ml.enkf import EnsembleKalmanFilter, ParameterSpec
+from ushna.ml.inverse_diagnosis import (
     InverseFaultDiagnosis,
     MechanisticDiagnosis,
     DynamometerFeatures,
     everted_gibbs_downhole_card,
     synthesize_pump_card
 )
-from src.learning.gp_residual import BoundedGPResidualModel, BoundedGPOutput
-from src.learning.symbolic_regression import (
+from ushna.ml.gp_residual import BoundedGPResidualModel, BoundedGPOutput
+from ushna.ml.symbolic_regression import (
     SymbolicEquationDiscoverer,
     DiscoveredEquation
 )
-from src.learning.pinn_surrogate import (
+from ushna.ml.pinn_surrogate import (
     AxisymmetricPINNSurrogate,
     EnergyAuditReport,
     EnergyAuditFailureError
 )
-from src.learning.pipeline import (
+from ushna.ml.pipeline import (
     USHNAPipeline,
     ExplainabilityCard,
     IncompleteExplainabilityCardError

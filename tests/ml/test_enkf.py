@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.enkf import EnsembleKalmanFilter, PARAM_SPECS
+from ushna.ml.enkf import EnsembleKalmanFilter, PARAM_SPECS
 
 
 def test_enkf_initialization():

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.pinn_surrogate import (
+from ushna.ml.pinn_surrogate import (
     AxisymmetricPINNSurrogate,
     EnergyAuditReport,
     EnergyAuditFailureError

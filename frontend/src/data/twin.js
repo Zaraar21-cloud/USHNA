@@ -1,6 +1,6 @@
 // ============================================================================
 // USHNA browser twin
-// Closed-form versions of src/physics/* so the UI recomputes the whole coupling
+// Closed-form versions of ushna/physics/* so the UI recomputes the whole coupling
 // chain (T̄ → T_pump → μ(T_pump) → FMI → SPM) on every interaction.
 // Synthetic, calibrated to published Baghewala / Rajasthan heavy-oil ranges.
 // ============================================================================
@@ -20,7 +20,7 @@ export const FIELD = {
   rho: 0.95,
 };
 
-// Published anchors the synthetic wells are calibrated to (Field Card, DATA_SOURCES.md).
+// Published anchors the synthetic wells are calibrated to (Field Card, docs/DATA_SOURCES.md).
 // CALIBRATION rows feed the physics (the model uses each range's midpoint) and are viewer-editable;
 // SOURCE_NOTES are context only.
 export const CALIBRATION = [

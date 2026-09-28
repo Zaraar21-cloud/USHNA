@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.symbolic_regression import (
+from ushna.ml.symbolic_regression import (
     SymbolicEquationDiscoverer,
     safe_div,
     safe_log,

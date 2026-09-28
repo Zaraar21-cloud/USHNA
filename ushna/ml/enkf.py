@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
-from src.physics.reservoir import boberg_lantz_temperature, radial_composite_inflow
-from src.physics.viscosity import WaltherViscosityModel
+from ushna.physics.reservoir import boberg_lantz_temperature, radial_composite_inflow
+from ushna.physics.viscosity import WaltherViscosityModel
 
 
 @dataclass

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.inverse_diagnosis import (
+from ushna.ml.inverse_diagnosis import (
     everted_gibbs_downhole_card,
     extract_card_features,
     synthesize_pump_card,

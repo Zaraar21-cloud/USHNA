@@ -76,9 +76,9 @@ unchanged.
 ## Python AI layer
 
 The Python learning pipeline uses the same Walther refit (A = 7.0393, B = 2.5617) in
-`src/data/synthetic_generator.py`, the EnKF priors (`src/learning/enkf.py`) and the
-training script. The artefacts in `trained_models/` were retrained after the change.
+`ushna/data/synthetic_generator.py`, the EnKF priors (`ushna/ml/enkf.py`) and the
+training script. The artefacts in `ushna/ml/artifacts/` were retrained after the change.
 
-The PINN (`src/learning/pinn_training.py`) shares the browser twin's geometry: 20 m pay,
+The PINN (`ushna/ml/pinn_training.py`) shares the browser twin's geometry: 20 m pay,
 60 m drainage radius, effective thermal diffusivity 0.9 m²/day, 47 °C reservoir and
 250 °C steam.

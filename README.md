@@ -28,11 +28,27 @@ The system prioritizes explicit conservation equations and physical constraints 
    * Bayesian optimization for CSS cycle design (steam volume, soak time).
    * Optimal stopping rules for production cut-off based on real-time net present value.
 
+## Repository Layout
+
+```
+ushna/                  Python package
+  physics/              reservoir, wellbore, viscosity, rod string
+  data/                 synthetic well generator, Arduino serial bridge
+  ml/                   all ML: EnKF, PINN, GP residual, symbolic regression, card diagnosis
+    train.py            training pipeline (python -m ushna.ml.train)
+    artifacts/          trained weights, reports and discovered equations
+tests/
+  physics/              physics engine tests
+  ml/                   ML component tests
+frontend/               React dashboard (browser twin)
+docs/                   data sources and UI design reference
+```
+
 ## Implementation Status
 
-* Phase 1 (done): Physics engine (Marx-Langenheim, Boberg-Lantz, Ramey, Walther viscosity, Gibbs wave equation, FMI) in `src/physics`.
-* Phase 2 (done): Synthetic data generator mimicking field sensor data, noise and drift, in `src/data`.
-* Phase 3 (done): AI layer in `src/learning`, trained artefacts in `trained_models/`, tests in `tests/`:
+* Phase 1 (done): Physics engine (Marx-Langenheim, Boberg-Lantz, Ramey, Walther viscosity, Gibbs wave equation, FMI) in `ushna/physics`.
+* Phase 2 (done): Synthetic data generator mimicking field sensor data, noise and drift, in `ushna/data`.
+* Phase 3 (done): AI layer in `ushna/ml`, trained artefacts in `ushna/ml/artifacts/`, tests in `tests/ml`:
   * **PINN** (`pinn_training.py`, PyTorch): learns the heated-zone temperature field T(r, z, t; r_h) from the heat equation plus sparse DTS / observation-well data. It is released to the optimizer only after passing an accuracy gate on steam designs it never saw and a first-principles energy-conservation audit.
   * **EnKF**: daily assimilation of temperature and rate into named physical parameters (kh, skin, heat loss, …) with uncertainty bands.
   * **Bounded GP residual**: learns what the physics misses, hard-capped at ±15%.
@@ -43,16 +59,17 @@ The system prioritizes explicit conservation equations and physical constraints 
 
 ## Data
 
-The prototype runs on **synthetic wells calibrated to published Baghewala parameters**. Oil India does not publish per-well telemetry for the field. Every anchor value and its citation is in [`DATA_SOURCES.md`](DATA_SOURCES.md).
+The prototype runs on **synthetic wells calibrated to published Baghewala parameters**. Oil India does not publish per-well telemetry for the field. Every anchor value and its citation is in [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md).
 
 ## Training the AI layer
 
 ```bash
 pip install -r requirements.txt
-python scripts/train_ml_pipeline.py     # ~10 min on a laptop CPU; writes trained_models/*
+python -m ushna.ml.train     # ~10 min on a laptop CPU; writes ushna/ml/artifacts/*
+pytest                       # physics + ML test suite
 ```
 
-The dashboard's **AI models** page reads `trained_models/*.json` directly, so retraining updates the numbers it shows.
+The dashboard's **AI models** page reads `ushna/ml/artifacts/*.json` directly, so retraining updates the numbers it shows.
 
 ## Running the prototype
 

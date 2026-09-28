@@ -7,11 +7,12 @@ Executes training, parameter discovery, and energy audits across all components:
 4. EnKF 80-day Continuous Assimilation & Uncertainty Collapse Trace
 5. Mechanistic Fault Diagnosis Benchmark
 
-Saves all trained weights, discovered formulas, and audit traces into trained_models/.
+Saves all trained weights, discovered formulas, and audit traces into ushna/ml/artifacts/.
+
+Run from the repository root:  python -m ushna.ml.train
 """
 
 import os
-import sys
 
 for _v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_v, "1" if _v == "OPENBLAS_NUM_THREADS" else "4")
@@ -19,24 +20,22 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-# Ensure repository root is on sys.path
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 import numpy as np
 
-from src.data.synthetic_generator import SyntheticDataGenerator
-from src.learning.enkf import EnsembleKalmanFilter
-from src.learning.gp_residual import BoundedGPResidualModel
-from src.learning.symbolic_regression import SymbolicEquationDiscoverer
-from src.learning.pinn_training import train_pinn, TrainConfig, report
-from src.learning.inverse_diagnosis import InverseFaultDiagnosis, synthesize_pump_card
-from src.physics.reservoir import boberg_lantz_temperature
-from src.physics.viscosity import WaltherViscosityModel
+from ushna.data.synthetic_generator import SyntheticDataGenerator
+from ushna.ml.enkf import EnsembleKalmanFilter
+from ushna.ml.gp_residual import BoundedGPResidualModel
+from ushna.ml.symbolic_regression import SymbolicEquationDiscoverer
+from ushna.ml.pinn_training import train_pinn, TrainConfig, report
+from ushna.ml.inverse_diagnosis import InverseFaultDiagnosis, synthesize_pump_card
+from ushna.physics.reservoir import boberg_lantz_temperature
+from ushna.physics.viscosity import WaltherViscosityModel
 
 
-def run_training_pipeline(output_dir: str = "trained_models", seed: int = 42, pinn_iterations: int = 4000):
+ARTIFACTS_DIR = Path(__file__).resolve().parent / "artifacts"
+
+
+def run_training_pipeline(output_dir: str = str(ARTIFACTS_DIR), seed: int = 42, pinn_iterations: int = 4000):
     os.makedirs(output_dir, exist_ok=True)
     rng = np.random.default_rng(seed)
     print("=" * 75)

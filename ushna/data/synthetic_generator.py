@@ -1,6 +1,6 @@
 import numpy as np
-from src.physics.reservoir import boberg_lantz_temperature
-from src.physics.viscosity import WaltherViscosityModel
+from ushna.physics.reservoir import boberg_lantz_temperature
+from ushna.physics.viscosity import WaltherViscosityModel
 
 class SyntheticDataGenerator:
     """
@@ -10,7 +10,7 @@ class SyntheticDataGenerator:
     def __init__(self, seed=42):
         np.random.seed(seed)
         # Heavy oil properties (Jodhpur Sandstone / Rajasthan)
-        # Refit to Oil India's 10,000-13,000 cP @ 50 C (see DATA_SOURCES.md)
+        # Refit to Oil India's 10,000-13,000 cP @ 50 C (see docs/DATA_SOURCES.md)
         self.visc_model = WaltherViscosityModel(A=7.0393, B=2.5617)
         
     def generate_css_cycle(self, days=80):

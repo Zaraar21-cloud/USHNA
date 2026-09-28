@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.learning.pipeline import (
+from ushna.ml.pipeline import (
     USHNAPipeline,
     ExplainabilityCard,
     IncompleteExplainabilityCardError

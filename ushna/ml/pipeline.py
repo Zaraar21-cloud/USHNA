@@ -17,13 +17,13 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
-from src.learning.enkf import EnsembleKalmanFilter
-from src.learning.inverse_diagnosis import InverseFaultDiagnosis, MechanisticDiagnosis
-from src.learning.gp_residual import BoundedGPResidualModel, BoundedGPOutput
-from src.learning.symbolic_regression import SymbolicEquationDiscoverer
-from src.learning.pinn_surrogate import AxisymmetricPINNSurrogate
-from src.physics.rod_string import float_margin_index
-from src.physics.viscosity import WaltherViscosityModel
+from ushna.ml.enkf import EnsembleKalmanFilter
+from ushna.ml.inverse_diagnosis import InverseFaultDiagnosis, MechanisticDiagnosis
+from ushna.ml.gp_residual import BoundedGPResidualModel, BoundedGPOutput
+from ushna.ml.symbolic_regression import SymbolicEquationDiscoverer
+from ushna.ml.pinn_surrogate import AxisymmetricPINNSurrogate
+from ushna.physics.rod_string import float_margin_index
+from ushna.physics.viscosity import WaltherViscosityModel
 
 
 FMI_LIMIT = 0.15

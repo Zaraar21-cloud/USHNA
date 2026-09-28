@@ -16,11 +16,11 @@ const REQS = [
 ];
 
 const ROADMAP = [
-  ['Physics engine: Marx–Langenheim, Boberg–Lantz, Ramey, Gibbs wave equation', 'ok', 'Done (src/physics)'],
-  ['Synthetic data generator and live FMI monitor', 'ok', 'Done (src/data)'],
-  ['EnKF assimilation loop with collapsing uncertainty bands', 'ok', 'Done (src/learning/enkf.py)'],
-  ['PINN trained in PyTorch, validated on unseen designs, energy-audited', 'ok', 'Done (src/learning/pinn_training.py)'],
-  ['GP residual, symbolic regression, inverse card diagnosis', 'ok', 'Done (src/learning, trained_models)'],
+  ['Physics engine: Marx–Langenheim, Boberg–Lantz, Ramey, Gibbs wave equation', 'ok', 'Done (ushna/physics)'],
+  ['Synthetic data generator and live FMI monitor', 'ok', 'Done (ushna/data)'],
+  ['EnKF assimilation loop with collapsing uncertainty bands', 'ok', 'Done (ushna/ml/enkf.py)'],
+  ['PINN trained in PyTorch, validated on unseen designs, energy-audited', 'ok', 'Done (ushna/ml/pinn_training.py)'],
+  ['GP residual, symbolic regression, inverse card diagnosis', 'ok', 'Done (ushna/ml)'],
   ['MPC controller and safety envelope, closed loop through a cooling cycle', 'warn', 'Pending: grid-search stand-in in UI'],
   ['CSS optimizer and optimal-stopping cut-off; NPV and SOR vs history', 'warn', 'In-browser grid evaluation; GP-BO pending'],
   ['Dashboard, wellbore visualisation, backtest, explainability cards', 'ok', 'This prototype'],

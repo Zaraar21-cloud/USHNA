@@ -31,7 +31,7 @@ export default function Learning({ ctx }) {
 const f1 = (x) => x.toFixed(1);
 const show = (x) => (Math.abs(x) >= 100 ? Math.round(x).toLocaleString('en-IN') : Math.abs(x) >= 1 ? x.toFixed(2) : x.toFixed(3));
 
-// Four headline tiles: one per model, every number read from trained_models/.
+// Four headline tiles: one per model, every number read from ushna/ml/artifacts/.
 export function AiStrip({ active, onPick }) {
   const tiles = [
     { tab: 'PINN surrogate', icon: Brain, name: 'Physics-informed neural net', value: `${f1(AI.pinn.rmse)} °C`,
@@ -186,7 +186,7 @@ function Pinn() {
         <ul className="mt-4 space-y-2 text-sm text-ink-2">
           <li><b className="text-ink">One network, the whole design space.</b> Heated radius r<sub>h</sub> is an input, so the optimizer can try any steam volume without retraining.</li>
           <li><b className="text-ink">Trained on sparse sensors, not a full field.</b> {pinn.training.sensors}, with ±{pinn.training.sensor_noise_c} °C noise. The physics loss fills in everywhere else.</li>
-          <li><b className="text-ink">Code:</b> <code className="text-xs">src/learning/pinn_training.py</code> (PyTorch training, NumPy inference) · <code className="text-xs">scripts/train_ml_pipeline.py</code></li>
+          <li><b className="text-ink">Code:</b> <code className="text-xs">ushna/ml/pinn_training.py</code> (PyTorch training, NumPy inference) · <code className="text-xs">ushna/ml/train.py</code></li>
         </ul>
       </Card>
     </div>

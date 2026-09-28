@@ -1,7 +1,7 @@
 import numpy as np
-from src.physics.reservoir import marx_langenheim_heated_volume, boberg_lantz_temperature, radial_composite_inflow
-from src.physics.viscosity import WaltherViscosityModel
-from src.physics.rod_string import solve_gibbs_wave_equation, float_margin_index
+from ushna.physics.reservoir import marx_langenheim_heated_volume, boberg_lantz_temperature, radial_composite_inflow
+from ushna.physics.viscosity import WaltherViscosityModel
+from ushna.physics.rod_string import solve_gibbs_wave_equation, float_margin_index
 
 def test_marx_langenheim():
     # Toy values for testing
