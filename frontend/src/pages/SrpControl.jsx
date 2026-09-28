@@ -136,7 +136,7 @@ export default function SrpControl({ ctx }) {
   );
 }
 
-function Slider({ label, value, min, max, step, onChange, display, hint }) {
+export function Slider({ label, value, min, max, step, onChange, display, hint }) {
   return (
     <label className="mb-4 block">
       <span className="flex justify-between text-sm"><span className="text-ink-2">{label}</span><span className="num font-semibold">{display}</span></span>

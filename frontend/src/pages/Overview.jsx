@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis, LabelList,
 } from 'recharts';
-import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown, BookOpen } from 'lucide-react';
+import { Thermometer, Gauge, Droplet, ShieldAlert, Activity, Download, Search, Flame, ArrowDown, BookOpen, SlidersHorizontal, ShieldCheck, RotateCcw } from 'lucide-react';
 import { PageHeader, Card, StatRow, Avatar, sub, Toggle, Bar, Status, VIZ, AXIS, GRID, fmt, toneOf, Legend } from '../components/ui';
 import RecCard from '../components/RecCard';
 import { AiStrip } from './Learning';
-import { FIELD } from '../data/twin';
+import { FIELD, buildState, envelope } from '../data/twin';
+import { Slider } from './SrpControl';
 
 export default function Overview({ ctx }) {
   const [tab, setTab] = useState('Overview');
@@ -67,6 +68,9 @@ function OverviewTab({ ctx }) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <CouplingCard s={s} r={r} view={view} />
+        <ControlCard ctx={ctx} />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <EconomicsCard s={s} />
         <EnthalpyCard s={s} r={r} />
       </div>
@@ -122,6 +126,100 @@ function CouplingCard({ s, r, view }) {
   );
 }
 const Arrow = () => <div className="-my-1 flex pl-[9px]"><ArrowDown size={10} className="text-ink-3" /></div>;
+
+// [label, value, format, format |Δ|, +1 if higher is better / −1 if lower is better]
+const DELTAS = [
+  ['Min FMI', (x) => x.fmiMin.fmi, fmt.n2, fmt.n2, 1],
+  ['Cut-off day', (x) => x.cut.day, (v) => `day ${v}`, (d) => `${d} d`, 1],
+  ['SOR at cut-off', (x) => x.sorAtCut, fmt.n2, fmt.n2, -1],
+  ['Cycle NPV', (x) => x.npv, fmt.lakh, fmt.lakh, 1],
+  ['Gross fluid', (x) => x.now.gross, (v) => `${fmt.n1(v)} bbl/d`, fmt.n1, 1],
+];
+const spLabel = (x) => `SPM ${x.spm.toFixed(1)} · downstroke ${fmt.pct(x.down)}`;
+
+// What-if on the live well: drag = free preview through the physics; Apply = the audited path (envelope + log).
+function ControlCard({ ctx }) {
+  const { s, well, day } = ctx;
+  const live = s.sp;
+  const [p, setP] = useState(live);
+  const [result, setResult] = useState(null);
+  useEffect(() => setP(live), [well.id, day, live.spm, live.down]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setResult(null), [well.id, day]);
+  const move = (next) => { setP((q) => ({ ...q, ...next })); setResult(null); };
+
+  const changed = p.spm !== live.spm || p.down !== live.down;
+  const ps = useMemo(() => (changed ? buildState(well, day, p) : s), [changed, well, day, p, s]);
+  const verdict = useMemo(() => envelope(well, day, p), [well, day, p]);
+  const where = ps.fmiMin.z ? `at ${ps.fmiMin.z} m` : 'at the top of the string';
+
+  return (
+    <Card tour="controls" title="Try a setpoint" icon={SlidersHorizontal} className="lg:col-span-2"
+      right={<span className="text-xs text-ink-3">preview is free · Apply is logged</span>}>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div>
+          <Slider label="Strokes per minute" value={p.spm} min={2} max={9} step={0.1} onChange={(spm) => move({ spm })} display={p.spm.toFixed(1)} />
+          <Slider label="Downstroke speed" value={p.down} min={0.7} max={1} step={0.05} onChange={(down) => move({ down })} display={fmt.pct(p.down)} />
+          <p className="text-sm">
+            <b className="num">{spLabel(p)}</b>
+            {changed && <span className="ml-2 rounded bg-brand-50 px-1.5 py-px text-[11px] font-medium text-brand-700">preview</span>}
+          </p>
+          {verdict.binding ? (
+            <p role="status" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              <b>{changed ? 'Blocked' : 'Live setpoint outside the envelope'}: {verdict.binding}</b> — {verdict.binding.startsWith('FMI') ? `the rods would float ${where}` : 'the gearbox would exceed its torque rating'}.
+              {' '}The envelope would clamp this to <b className="num">SPM {verdict.applied.spm.toFixed(1)}</b>.
+            </p>
+          ) : (
+            <p role="status" className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700"><ShieldCheck size={15} /> Within safety envelope</p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button onClick={() => setResult(ctx.submit(p))} disabled={!changed} className="btn-primary disabled:opacity-40">
+              <ShieldCheck size={15} /> Apply through envelope
+            </button>
+            <button onClick={() => move(live)} disabled={!changed} className="btn-ghost disabled:opacity-40"><RotateCcw size={14} /> Reset</button>
+            <button onClick={() => move({ spm: s.mpc.spm, down: s.mpc.down })} disabled={s.mpc.infeasible || (p.spm === s.mpc.spm && p.down === s.mpc.down)} className="btn-ghost disabled:opacity-40">
+              Use optimizer's setpoint
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-ink-3">
+            {s.mpc.infeasible
+              ? 'The optimizer finds no setpoint inside every hard constraint for this well today.'
+              : <>Optimizer: <span className="num">{spLabel(s.mpc)}</span>. It maximises the next 48 h of profit inside every hard constraint (float, fillage, torque, fatigue), not whole-cycle NPV.</>}
+          </p>
+          {result && (
+            <p className="mt-2 text-sm text-ink-2">
+              {result.binding ? <>Clamped to <b className="num">{spLabel(result.applied)}</b> ({result.binding}).</> : <>Accepted. <b className="num">{spLabel(result.applied)}</b> is now live.</>}
+              {' '}<button onClick={() => ctx.go('SrpControl')} className="font-medium text-brand-600 hover:underline">See the envelope log</button>
+            </p>
+          )}
+        </div>
+        <dl>
+          {DELTAS.map(([label, get, show, showD, better]) => {
+            const a = get(s), b = get(ps), d = b - a;
+            const flat = showD(Math.abs(d)) === showD(0);
+            const good = d * better > 0;
+            return (
+              <div key={label} className="border-b border-line py-2 last:border-0">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <dt className="text-ink-2">{label}</dt>
+                  <dd className="num whitespace-nowrap">
+                    {changed && <span className="text-ink-3">{show(a)} → </span>}
+                    <b>{show(b)}</b>
+                    {changed && (flat
+                      ? <span className="ml-2 text-xs text-ink-3">no change</span>
+                      : <span className={`ml-2 text-xs font-semibold ${good ? 'text-emerald-700' : 'text-red-600'}`}>{d > 0 ? '▲ +' : '▼ −'}{showD(Math.abs(d))}</span>)}
+                  </dd>
+                </div>
+                {label === 'Gross fluid' && ps.now.fillage < 1 && (
+                  <p className="mt-0.5 text-right text-[11px] text-amber-700">pump fillage limited — extra speed adds load, not fluid</p>
+                )}
+              </div>
+            );
+          })}
+        </dl>
+      </div>
+    </Card>
+  );
+}
 
 function EconomicsCard({ s }) {
   const atCut = s.rows[s.cut.day];

@@ -28,21 +28,31 @@ const NAV = [
 ];
 
 const n0 = (x) => Math.round(x).toLocaleString('en-IN');
+// Ordered by the architecture diagram (Traceability page), so each step's layer badge maps to a box on the slide.
 const TOUR = [
-  { page: 'Reservoir', target: 'thermal', title: 'The problem',
-    text: (s) => `After each steam job the heated zone cools. Oil at the pump thickens from ${n0(s.rows[0].mu)} cP on day 0 to ${n0(s.rows[s.cut.day].mu)} cP by the cut-off on day ${s.cut.day}.` },
-  { page: 'Wellbore', target: 'ramey', title: 'The coupling',
+  { layer: 'Observation layer', page: 'Telemetry', target: 'telemetry', title: 'The data coming in',
+    text: () => 'The twin runs on what the pad already records: SCADA, VFD, surface dynamometer, wellhead pressures and steam flow. This is a simulated polished-rod vibration stream; spikes flag rod impact.' },
+  { layer: 'Physics core · reservoir', page: 'Reservoir', target: 'thermal', title: 'The problem',
+    text: ({ s }) => `After each steam job the heated zone cools. Oil at the pump thickens from ${n0(s.rows[0].mu)} cP on day 0 to ${n0(s.rows[s.cut.day].mu)} cP by the cut-off on day ${s.cut.day}.` },
+  { layer: 'Physics core · wellbore', page: 'Wellbore', target: 'ramey', title: 'The coupling',
     text: () => `Physics computes the viscosity at the pump, ${FIELD.pumpDepth} m down. No sensor can measure it; the twin infers it from temperature.` },
-  { page: 'Learning', tab: 'PINN surrogate', target: 'pinn', title: 'The AI: a physics-informed neural network',
-    text: () => `A neural network trained on the heat equation plus sparse sensor data learned how the heated zone cools. On steam designs it never saw it is within ${AI.pinn.rmse.toFixed(1)} °C of the full solver, ${Math.round(AI.pinn.speedup)}× faster, and it passed an energy-conservation audit before the optimizer may use it.` },
-  { page: 'Learning', tab: 'EnKF assimilation', target: 'enkf', title: 'The AI keeps the twin honest',
-    text: () => `Every day an ensemble Kalman filter re-estimates the well's hidden physics from temperature and rate. In ${AI.enkf.days} days it cut the uncertainty on permeability-thickness by ${Math.round(AI.enkf.collapse)}%, so the twin matches its own well, not a textbook one.` },
-  { page: 'RodString', target: 'fmi', title: 'The risk',
+  { layer: 'Physics core · rod string', page: 'RodString', target: 'fmi', title: 'The risk',
     text: () => 'The Float Margin Index falls toward 0.15 as the oil thickens. Below that the rods cannot fall fast enough on the downstroke: they float, buckle and break.' },
-  { page: 'Recommendations', target: 'rec', title: 'The decision',
+  { layer: 'Self-calibration', page: 'Learning', tab: 'EnKF assimilation', target: 'enkf', title: 'The twin keeps itself honest',
+    text: () => `Every day an ensemble Kalman filter re-estimates the well's hidden physics from temperature and rate. In ${AI.enkf.days} days it cut the uncertainty on permeability-thickness by ${Math.round(AI.enkf.collapse)}%, so the twin matches its own well, not a textbook one.` },
+  { layer: 'ML acceleration', page: 'Learning', tab: 'PINN surrogate', target: 'pinn', title: 'A physics-informed neural network',
+    text: () => `A neural network trained on the heat equation plus sparse sensor data learned how the heated zone cools. On steam designs it never saw it is within ${AI.pinn.rmse.toFixed(1)} °C of the full solver, ${Math.round(AI.pinn.speedup)}× faster, and it passed an energy-conservation audit before the optimizer may use it.`,
+    more: 'Two more learning components sit in this tab: a Gaussian-process residual that finds what the physics missed, and symbolic regression that proposes printable field laws, viscosity among them.' },
+  { layer: 'Optimization layer', page: 'CssDesign', target: 'cutoff', title: 'Designing the steam cycle',
+    text: ({ s, design }) => `${s.well.id} should re-steam around day ${s.cut.day}, when a day's profit drops below the average of a fresh cycle. For the next cycle an NPV search over steam volume and soak picks ${n0(design.best.steam)} t and ${design.best.soak} days (Cycle design tab).` },
+  { layer: 'Optimization layer', page: 'Recommendations', target: 'rec', title: 'The decision',
     text: () => 'The controller cuts pumping speed before the limit is reached. Every card shows the governing equation, the numbers behind it and a confidence.' },
-  { page: 'SrpControl', target: 'envelope', title: 'The guard',
-    text: () => 'Every setpoint, from the optimizer or a person, passes a rule-based safety envelope. Unsafe requests are clamped and every veto is logged. Try SPM 9 and submit.' },
+  { layer: 'Safety envelope', page: 'Overview', target: 'controls', title: 'Try to break it',
+    text: () => 'Drag SPM to 9 and watch the Float Margin Index go negative. The envelope blocks it before anything reaches the well.' },
+  { layer: 'Safety envelope', page: 'SrpControl', target: 'envelope', title: 'The veto, on the record',
+    text: () => 'Every setpoint, from the optimizer or a person, passes this rule-based envelope. Unsafe requests are clamped, and every veto is logged here with the constraint that bound it.' },
+  { layer: 'Closed loop', end: true, title: 'Every number has a paper trail',
+    text: () => 'Every setpoint you just saw is logged with its equation, its inputs and who approved it. That record is the Traceability page: open it and check any number on this site back to the line of physics that produced it.' },
 ];
 
 const SEEN_KEY = 'ushna.aboutSeen';
@@ -92,23 +102,36 @@ export default function Shell({ page, go, ctx, children }) {
   const [mobileNav, setMobileNav] = useState(false);
   const alerts = alertsFor(fleet);
   const progress = Math.min(1, day / Math.max(s.cut.day, 1));
-  const [about, setAbout] = useState(firstVisit);
+  // 'welcome' = the first-visit modal, read-only: show the judge something before asking them to configure it.
+  const [about, setAbout] = useState(() => (firstVisit() ? 'welcome' : false));
   const closeAbout = () => { setAbout(false); try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* storage blocked */ } };
   const [tourStep, setTourStep] = useState(null);
+  const [tips, setTips] = useState(false);
   const step = tourStep == null ? null : TOUR[tourStep];
+
+  // First visit: the cycle is already running, slowly, behind the welcome modal.
+  useEffect(() => {
+    if (about !== 'welcome') return;
+    ctx.setPace(0.5);
+    ctx.runCycle();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
 
   // Tour: navigate to the step's page, then spotlight its panel.
   useEffect(() => {
-    if (!step) return;
+    if (!step?.page) return;
     if (step.tab && ctx.learnTab !== step.tab) { ctx.setLearnTab(step.tab); return; }
     if (page !== step.page) { go(step.page); return; }
     const el = document.querySelector(`[data-tour="${step.target}"]`);
     if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' }); // top of the card below the header, clear of the tour panel on phones
     el.classList.add('tour-focus');
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return () => el.classList.remove('tour-focus');
   }, [step, page, ctx.learnTab]); // eslint-disable-line react-hooks/exhaustive-deps -- go is recreated every render
-  const startTour = () => { closeAbout(); setTourStep(0); };
+  const startTour = () => {
+    closeAbout(); setTips(false); setTourStep(0);
+    ctx.resetDay(); // end the demo, back to the live day: the tour's text and spotlights assume a still well state
+  };
+  const endTour = (to) => { setTourStep(null); setTips(true); if (to) go(to); };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -188,10 +211,10 @@ export default function Shell({ page, go, ctx, children }) {
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <RunButton ctx={ctx} className="w-9 justify-center rounded-full border border-line hover:bg-canvas lg:hidden" iconOnly />
-          <button onClick={startTour} className={`${PILL} w-9 justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 sm:w-auto sm:px-3.5`} aria-label="Start the 60-second guided tour">
+          <button onClick={startTour} className={`${PILL} w-9 justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 sm:w-auto sm:px-3.5`} aria-label="Start the guided tour, about 2 minutes">
             <Compass size={16} />
             <span className="hidden sm:inline xl:hidden">Tour</span>
-            <span className="hidden xl:inline">60-second tour</span>
+            <span className="hidden xl:inline">Guided tour · 2 min</span>
           </button>
           <Popover
             align="right" width="w-80"
@@ -244,7 +267,7 @@ export default function Shell({ page, go, ctx, children }) {
           <button onClick={() => setAbout(true)} className="px-5 py-4 text-left text-[11px] text-ink-3 hover:text-ink-2">Synthetic wells · 6 of 35 modelled · about this data</button>
         </aside>
 
-        <main className="min-w-0 flex-1 bg-white">
+        <main className={`min-w-0 flex-1 bg-white ${step || tips ? 'pb-72' : ''}`}>{/* room to scroll the last card above the bottom panel */}
           <div className="mx-auto max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">{children}</div>
           <footer className="border-t border-line px-4 py-5 text-center text-[11px] text-ink-3 lg:px-8">
             Prototype for SIH PS 26120 (Oil India Limited). All values come from the USHNA physics model running on synthetic data and are not operational advice.
@@ -258,19 +281,22 @@ export default function Shell({ page, go, ctx, children }) {
       {about && (
         <AboutData
           ctx={ctx}
+          editable={about !== 'welcome'}
           onClose={closeAbout}
-          onStart={() => { ctx.selectWell('BGW-07'); go('Overview'); closeAbout(); }}
-          onTour={() => { ctx.selectWell('BGW-07'); startTour(); }}
+          onStart={closeAbout}
+          onTour={() => { if (well.id !== 'BGW-07') ctx.selectWell('BGW-07'); startTour(); }} // selectWell would stop the demo
         />
       )}
       {step && (
         <TourPanel
-          step={step} i={tourStep} n={TOUR.length} s={s}
+          step={step} i={tourStep} n={TOUR.length} ctx={ctx}
           onPrev={() => setTourStep((i) => Math.max(0, i - 1))}
-          onNext={() => setTourStep((i) => (i + 1 < TOUR.length ? i + 1 : null))}
+          onNext={() => setTourStep((i) => i + 1)}
+          onEnd={endTour}
           onClose={() => setTourStep(null)}
         />
       )}
+      {tips && !step && <TourTips ctx={ctx} go={go} onClose={() => setTips(false)} />}
     </div>
   );
 }
@@ -469,7 +495,7 @@ function ParamEditor({ c, value, onSave, onCancel }) {
   );
 }
 
-function AboutData({ ctx, onClose, onStart, onTour }) {
+function AboutData({ ctx, editable, onClose, onStart, onTour }) {
   const [draft, setDraft] = useState(ctx.calib);
   const [editing, setEditing] = useState(null);
   const [review, setReview] = useState(null); // the exit action waiting on Accept / Discard
@@ -510,9 +536,11 @@ function AboutData({ ctx, onClose, onStart, onTour }) {
                           {pending ? <span className="ml-1 text-[10px] font-normal text-amber-700">unsaved</span>
                             : edited && <span className="ml-1 text-[10px] font-normal text-brand-600">edited</span>}
                         </span>
-                        <button onClick={() => setEditing(c.key)} className="shrink-0 text-ink-3 hover:text-brand-600" aria-label={`Edit ${c.label}`} title="Edit">
-                          <Pencil size={12} />
-                        </button>
+                        {editable && (
+                          <button onClick={() => setEditing(c.key)} className="shrink-0 text-ink-3 hover:text-brand-600" aria-label={`Edit ${c.label}`} title="Edit">
+                            <Pencil size={12} />
+                          </button>
+                        )}
                       </span>
                     )}
                   </td>
@@ -528,7 +556,9 @@ function AboutData({ ctx, onClose, onStart, onTour }) {
           </tbody>
         </table>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
-          <span>Values with a <Pencil size={10} className="inline" /> feed the physics model (it uses each range's midpoint).</span>
+          {editable
+            ? <span>Values with a <Pencil size={10} className="inline" /> feed the physics model (it uses each range's midpoint).</span>
+            : <span>Want to stress-test the model? Reopen this from the SYNTHETIC DATA badge to edit these values.</span>}
           {CALIBRATION.some((c) => !same(draft[c.key], c.range)) && (
             <button onClick={() => setDraft(calibDefaults())} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
               <RotateCcw size={11} /> Reset to published values
@@ -541,8 +571,8 @@ function AboutData({ ctx, onClose, onStart, onTour }) {
         </div>
         <p className="mt-4 text-sm font-medium">Connected to a live SCADA feed, only the data source changes. The model does not.</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <button autoFocus onClick={() => leave(onStart)} className="btn-primary">Start with BGW-07</button>
-          <button onClick={() => leave(onTour)} className="btn-ghost"><Compass size={15} /> Show me the physics</button>
+          <button autoFocus onClick={() => leave(onTour)} className="btn-primary"><Compass size={15} /> Guided tour (2 min)</button>
+          <button onClick={() => leave(onStart)} className="btn-ghost">Explore on my own</button>
         </div>
       </div>
       {review && (
@@ -573,22 +603,58 @@ function AboutData({ ctx, onClose, onStart, onTour }) {
   );
 }
 
-function TourPanel({ step, i, n, s, onPrev, onNext, onClose }) {
+function TourPanel({ step, i, n, ctx, onPrev, onNext, onEnd, onClose }) {
+  const btn = 'rounded-full px-4 py-1.5 text-sm font-medium';
   return (
-    <div role="dialog" aria-label="Guided tour" className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-lg rounded-2xl bg-ink p-5 text-white shadow-2xl">
-      <div className="flex items-center justify-between text-xs text-white/60">
-        <span>Step {i + 1} of {n}</span>
+    <div role="dialog" aria-label="Guided tour" className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-lg rounded-2xl bg-ink p-4 text-white shadow-2xl sm:p-5">
+      <div className="flex items-center gap-2 text-xs text-white/60">
+        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-200">{step.layer}</span>
+        <span className="ml-auto">Step {i + 1} of {n}</span>
         <button onClick={onClose} className="hover:text-white" aria-label="End tour"><X size={16} /></button>
       </div>
-      <h3 className="mt-1 text-lg font-semibold">{step.title}</h3>
-      <p className="mt-1 text-sm text-white/85">{step.text(s)}</p>
+      <h3 className="mt-2 text-lg font-semibold">{step.title}</h3>
+      <p className="mt-1 text-sm text-white/85">{step.text(ctx)}</p>
+      {step.more && <p className="mt-2 text-xs text-white/60">{step.more}</p>}
       <div className="mt-4 flex items-center gap-2">
         <div className="flex flex-1 gap-1">
           {Array.from({ length: n }, (_, k) => <span key={k} className={`h-1 flex-1 rounded-full ${k <= i ? 'bg-brand-500' : 'bg-white/20'}`} />)}
         </div>
         {i > 0 && <button onClick={onPrev} className="rounded-full px-3 py-1.5 text-sm text-white/80 hover:text-white">Back</button>}
-        <button onClick={onNext} className="rounded-full bg-white px-4 py-1.5 text-sm font-medium text-ink hover:bg-white/90">{i + 1 < n ? 'Next' : 'Done'}</button>
+        {!step.end && <button onClick={onNext} className={`${btn} bg-white text-ink hover:bg-white/90`}>Next</button>}
       </div>
+      {step.end && (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button onClick={() => onEnd()} className={`${btn} border border-white/30 text-white hover:bg-white/10`}>Explore on my own</button>
+          <button autoFocus onClick={() => onEnd('Traceability')} className={`${btn} bg-white text-ink hover:bg-white/90`}>Open traceability</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// After the tour: concrete things to poke at, each one a click away.
+function TourTips({ ctx, go, onClose }) {
+  const tips = [
+    ['Run the cycle and watch μ and FMI move together', () => { go('Overview'); if (!ctx.playing) ctx.runCycle(); }],
+    ['Drag SPM to 9 on the Dashboard, apply it, then read the veto log', () => go('Overview')],
+    ['Switch to BGW-11: past its cut-off, already clamped by the float limit', () => { ctx.selectWell('BGW-11'); go('Overview'); }],
+    ['Open Traceability to check any number back to its equation', () => go('Traceability')],
+  ];
+  return (
+    <div role="dialog" aria-label="Things worth trying" className="card fixed inset-x-3 bottom-3 z-50 mx-auto max-w-lg p-4 shadow-2xl">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">Tour complete. Things worth trying:</p>
+        <button onClick={onClose} className="text-ink-3 hover:text-ink" aria-label="Dismiss"><X size={16} /></button>
+      </div>
+      <ul className="mt-2 space-y-0.5">
+        {tips.map(([text, act]) => (
+          <li key={text}>
+            <button onClick={act} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink-2 hover:bg-canvas hover:text-ink">
+              <ChevronRight size={14} className="shrink-0 text-brand-500" /> {text}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

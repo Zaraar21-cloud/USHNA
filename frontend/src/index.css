@@ -28,6 +28,7 @@
 .no-mark .recharts-responsive-container::after { display: none; }
 
 /* Guided-tour spotlight */
+[data-tour] { scroll-margin-top: 5rem; } /* clear of the sticky header */
 .tour-focus { outline: 3px solid #7B4DFF; outline-offset: 4px; transition: outline-color .2s; }
 
 .recharts-cartesian-axis-tick-value { font-size: 11px; fill: #8C8C9A; }

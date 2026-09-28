@@ -45,7 +45,7 @@ function Cutoff({ s }) {
           <p className="mt-1 text-xs text-ink-2">Keep producing only while this well earns more than the average of starting a new cycle, counting injection cost and soak downtime. π(t) falls steadily as T̄ drops, so there is a single crossing point.</p>
         </div>
       </Card>
-      <Card title="Decision" icon={Timer}>
+      <Card tour="cutoff" title="Decision" icon={Timer}>
         <StatRow label="Cut-off day" value={`${s.cut.day} ± ${s.cut.band}`} />
         <StatRow label="Days remaining" value={Math.max(0, s.cut.day - s.day)} />
         <StatRow label="π(t) today" value={`₹${fmt.n0(s.now.profit)}`} unit="/day" />

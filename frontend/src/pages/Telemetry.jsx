@@ -72,7 +72,7 @@ export default function Telemetry({ ctx }) {
         }
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card title="Z-acceleration (g) and jerk" icon={Radio} className="lg:col-span-8" right={<Legend items={[['z accel', VIZ.purple], ['jerk', VIZ.pink]]} />}>
+        <Card tour="telemetry" title="Z-acceleration (g) and jerk" icon={Radio} className="lg:col-span-8" right={<Legend items={[['z accel', VIZ.purple], ['jerk', VIZ.pink]]} />}>
           <div className="h-44">
             <ResponsiveContainer>
               <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
