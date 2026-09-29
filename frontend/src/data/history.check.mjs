@@ -3,9 +3,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as XLSX from 'xlsx';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { matchColumns, missingFields, toCycles, byWell, rowsFromSheet, pdfItems, rowsFromPdfItems, readFile, toHistory, parseStored, markClass } from './history.js';
+import { matchColumns, missingFields, toCycles, byWell, rowsFromSheet, pdfItems, rowsFromPdfItems, readFile, toHistory, parseStored, markClass, pdfLib } from './history.js';
 import { makePdf } from '../../scripts/pdf.mjs';
+
+const pdfjs = await pdfLib(); // the build the browser loads; must run on engines older than 2025
 
 const bytes = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 const sample = (ext) => bytes(readFileSync(new URL(`../../public/samples/sample-cycle-history.${ext}`, import.meta.url)));
@@ -38,6 +39,11 @@ assert.deepEqual(
 );
 assert.equal(matchColumns(['Well', 'Cycle', 'Steam-Oil Ratio']).steam, -1, 'SOR is not steam');
 assert.deepEqual(missingFields(matchColumns(['Well', 'Cycle'])), ['Steam (t)', 'Oil (bbl)']);
+// Prefix matches skip dates, temperatures, durations and costs that happen to start with a field name
+assert.equal(matchColumns(['Well', 'Cycle', 'Steaming start date', 'Steam qty (MT)', 'Oil (bbl)']).steam, 3, 'a date column is not steam');
+assert.equal(matchColumns(['Well', 'Cycle', 'Steam temperature (°C)', 'Steam qty (MT)', 'Oil (bbl)']).steam, 3, 'a temperature column is not steam');
+assert.equal(matchColumns(['Well', 'Cycle days', 'Cycle no. (CSS)', 'Steam', 'Oil']).cycle, 2, 'cycle length is not cycle number');
+assert.equal(matchColumns(['Well', 'Cycle', 'Steam', 'Oil', 'Energy cost (Rs)', 'Specific energy (kWh/bbl)']).energy, 5, 'a cost is not energy');
 
 // Row validation: every rejection names its row and reason; separators and n/a are handled
 const M = { well: 0, cycle: 1, steam: 2, oil: 3, energy: 4, failures: -1 };
@@ -76,6 +82,24 @@ const pdf = rowsFromPdfItems([
 assert.deepEqual(pdf.headers, ['Well', 'Cycle', 'Steam (t)', 'Oil']);
 assert.deepEqual(pdf.rows.map((r) => r.cells), [['BGW-07', '1', '2500', '12,081'], ['BGW-07', '2', '2600', '2,300']]);
 
+// PDF as Excel exports it: left-aligned headers over right-aligned numbers, and a header split into words
+const left = rowsFromPdfItems([
+  it('Well', 40, 780, 20), it('Cycle', 140, 780, 25), it('Steam', 240, 780, 22), it('injected', 264.5, 780, 30), it('(t)', 297, 780, 10),
+  it('Oil (bbl)', 340, 780, 35), it('Energy', 440, 780, 30),
+  it('BGW-07', 40, 764, 35), it('1', 227, 764, 5), it('2,600', 309, 764, 23), it('12,081', 403, 764, 29), it('21.5', 514, 764, 18),
+]);
+assert.deepEqual(left.headers, ['Well', 'Cycle', 'Steam injected (t)', 'Oil (bbl)', 'Energy']);
+assert.deepEqual(left.rows.map((r) => r.cells), [['BGW-07', '1', '2,600', '12,081', '21.5']]);
+
+// Workbook: a hidden first sheet and a cover sheet are passed over for the first visible sheet with a table
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Well', 'Cycle', 'Steam (t)', 'Oil (bbl)'], ['BGW-04', 9, 1, 1]]), 'Old');
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Prepared by', 'Field office'], ['Date', '2026-01-05']]), 'Cover');
+XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Well', 'Cycle', 'Steam (t)', 'Oil (bbl)'], ['BGW-07', 1, 2500, 2000]]), 'Data');
+wb.Workbook = { Sheets: [{ Hidden: 1 }, { Hidden: 0 }, { Hidden: 0 }] };
+const multi = rowsFromSheet(bytes(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })), XLSX);
+assert.deepEqual(multi.rows.map((r) => r.cells), [['BGW-07', 1, 2500, 2000]], 'reads the Data sheet');
+
 // Scanned PDF (no text layer), wrong type, too big
 await assert.rejects(pdfItems(bytes(makePdf([])), pdfjs), /scanned PDFs are not supported/);
 await assert.rejects(readFile({ name: 'notes.docx', size: 100 }), /not supported/);
@@ -83,6 +107,10 @@ await assert.rejects(readFile({ name: 'BIG.XLSX', size: 11 * 1024 * 1024 }), /li
 
 // Stored state: anything malformed is ignored
 for (const bad of [null, 'not json', '{"x":1}', '[]']) assert.equal(parseStored(bad), null, String(bad));
+for (const wells of ['[null]', 'null', '"x"', '[{"well":"BGW-07","cycle":1,"steam":1,"oil":1}]', '[{"cycle":1,"steam":1,"oil":1,"sor":6.29}]']) {
+  const text = `{"file":"a","wells":{"BGW-07":${wells}}}`;
+  assert.equal(parseStored(text), null, text); // a record the UI cannot render never reaches it
+}
 const h = toHistory('sample-cycle-history.xlsx', out.csv.records);
 assert.equal(h.sample, true);
 assert.equal(toHistory('field.xlsx', []).sample, false);

@@ -186,10 +186,12 @@ export function WellRecords({ ctx, go, onClose }) {
           </>
         ) : (
           <div className="mt-2 rounded-xl bg-canvas p-4 text-sm text-ink-2">
-            <p>No historical records for {well.id} yet. Upload the pad's cycle spreadsheet or report, or load the sample to see how the twin uses it.</p>
+            {ctx.history // an upload is loaded: say so, and never offer a one-click overwrite with the sample
+              ? <p>{ctx.history.file} has no rows for {well.id}. Upload a file that includes this well to see its history.</p>
+              : <p>No historical records for {well.id} yet. Upload the pad's cycle spreadsheet or report, or load the sample to see how the twin uses it.</p>}
             <div className="mt-3 flex flex-wrap gap-2">
-              <button autoFocus onClick={trySample} disabled={busy} className="btn-primary disabled:opacity-40">{busy ? 'Reading…' : 'Try a sample'}</button>
-              <button onClick={() => leave('Telemetry')} className="btn-ghost">Upload records</button>
+              {!ctx.history && <button autoFocus onClick={trySample} disabled={busy} className="btn-primary disabled:opacity-40">{busy ? 'Reading…' : 'Try a sample'}</button>}
+              <button autoFocus={!!ctx.history} onClick={() => leave('Telemetry')} className={ctx.history ? 'btn-primary' : 'btn-ghost'}>Upload records</button>
             </div>
             {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}
           </div>

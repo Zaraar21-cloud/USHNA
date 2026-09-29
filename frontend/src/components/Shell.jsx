@@ -7,6 +7,7 @@ import { Avatar, Badge, Toggle, sub } from './ui';
 import { FIELD, CALIBRATION, SOURCE_NOTES, calibDefaults, fmtCalib, mid, heatedRadius, viscosity } from '../data/twin';
 import { AI } from '../data/ml';
 import { WellRecords } from './Records';
+import { CSS_TABS } from '../pages/CssDesign';
 
 // Ordered by the story a first-time visitor follows, not by architecture.
 const NAV = [
@@ -151,6 +152,7 @@ export default function Shell({ page, go, ctx, children }) {
   }, [step, page, ctx.learnTab]); // eslint-disable-line react-hooks/exhaustive-deps -- go is recreated every render
   const startTour = () => {
     closeAbout(); setTips(false); setTourStep(0);
+    ctx.setCssTab(CSS_TABS[0]); // the CSS step spotlights the cut-off card on the first tab
     ctx.resetDay(); // end the demo, back to the live day: the tour's text and spotlights assume a still well state
   };
   const endTour = (to) => { setTourStep(null); setTips(true); if (to) go(to); };
