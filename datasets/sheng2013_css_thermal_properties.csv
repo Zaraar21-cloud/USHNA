@@ -1,0 +1,8 @@
+material,thermal_conductivity_W_per_mK,heat_capacity_J_per_kgK,density_kg_per_m3,thermal_diffusivity_m2_per_s,volumetric_heat_capacity_MJ_per_m3K,reference
+Reservoir rock (sandstone),2.5,900,2650.0,1.05e-06,2.385,Sheng (2013); standard petroleum engineering tables
+Reservoir rock (limestone),2.0,840,2700.0,8.82e-07,2.268,Sheng (2013); standard petroleum engineering tables
+Overburden shale,1.7,850,2500.0,8e-07,2.125,Sheng (2013); standard petroleum engineering tables
+Underburden shale,1.5,880,2400.0,7.1e-07,2.112,Sheng (2013); standard petroleum engineering tables
+Water (liquid at 100 deg C),0.68,4186,958.0,1.7e-07,4.01,Sheng (2013); standard petroleum engineering tables
+Steam (saturated at 250 deg C),0.033,2030,12.5,0.0013,0.025,Sheng (2013); standard petroleum engineering tables
+Heavy oil (14-18 API),0.14,1900,950.0,7.8e-08,1.805,Sheng (2013); standard petroleum engineering tables

@@ -1,0 +1,3 @@
+well_name,well_type,grid_i,grid_j,grid_k,control,rate_Mscf_per_day,max_BHP_psia,location,source
+INJ,Gas Injector,1,1,1-3,Rate,100000,9014,"Corner (1,1)",OPM SPE1CASE1.DATA
+PROD,Oil Producer,10,10,1-3,Rate,20000,1000,"Corner (10,10)",OPM SPE1CASE1.DATA

@@ -1,0 +1,4 @@
+layer,layer_name,cells_per_layer,DX_ft,DY_ft,DZ_ft,top_depth_ft,porosity_frac,PERMX_mD,PERMY_mD,PERMZ_mD,source,license
+1,Upper,100,1000,1000,20,8325,0.3,500,500,500,OPM SPE1CASE1.DATA (Odeh 1981),ODbL 1.0
+2,Middle,100,1000,1000,30,8345,0.3,50,50,50,OPM SPE1CASE1.DATA (Odeh 1981),ODbL 1.0
+3,Lower,100,1000,1000,50,8375,0.3,200,200,200,OPM SPE1CASE1.DATA (Odeh 1981),ODbL 1.0

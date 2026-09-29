@@ -1,0 +1,2 @@
+datum_depth_ft,datum_pressure_psia,WOC_depth_ft,WOC_Pcow_psi,GOC_depth_ft,GOC_Pcog_psi,Rs_at_datum_Mscf_per_stb,initial_temperature_F,simulation_period_days,source
+8400,4800,8500,0,8200,0,1.27,130,3650,OPM SPE1CASE1.DATA (Odeh 1981)

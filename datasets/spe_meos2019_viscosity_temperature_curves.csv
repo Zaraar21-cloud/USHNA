@@ -1,0 +1,13 @@
+temperature_C,viscosity_cp_Mukhaizna_16API,viscosity_cp_Amal_14API,viscosity_cp_Baghewala_17API_reference,reference
+30,2500.0,8000.0,30000,MEOS 2019 / Oil India
+40,400.0,800.0,14429,MEOS 2019 / Oil India
+50,150.0,280.0,11500,MEOS 2019 / Oil India
+60,70.0,120.0,6495,MEOS 2019 / Oil India
+80,22.0,35.0,1698,MEOS 2019 / Oil India
+100,10.0,15.0,500,MEOS 2019 / Oil India
+120,6.0,8.0,170,MEOS 2019 / Oil India
+150,3.2,4.0,48,MEOS 2019 / Oil India
+180,2.0,2.5,22,MEOS 2019 / Oil India
+200,1.5,1.8,14,MEOS 2019 / Oil India
+220,1.2,1.4,10,MEOS 2019 / Oil India
+250,0.8,1.0,5,MEOS 2019 / Oil India
