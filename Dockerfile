@@ -15,6 +15,7 @@ COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 COPY ushna/ ushna/
 COPY api/ api/
+COPY src/ src/
 COPY --from=frontend /app/frontend/dist/ /app/frontend/dist/
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000

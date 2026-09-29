@@ -1,0 +1,26 @@
+# Backend Dockerfile for USHNA Digital Twin Edge API
+# Based on Python 3.11 slim image
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl && rm -rf /var/lib/apt/lists/*
+
+# Install Python requirements
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+# Copy application packages
+COPY ushna/ ushna/
+COPY api/ api/
+COPY src/ src/
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=3s CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+# Supports both api.main:app and src.main:app
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
