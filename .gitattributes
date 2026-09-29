@@ -2,3 +2,4 @@
 docker/** text eol=lf
 db/*.sql text eol=lf
 Dockerfile text eol=lf
+*.pdf binary
