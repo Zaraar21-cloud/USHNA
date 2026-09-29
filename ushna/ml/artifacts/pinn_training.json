@@ -5,7 +5,7 @@
   "accurate": true,
   "energy_audit_passed": true
  },
- "trained_at": "2026-09-27 15:09",
+ "trained_at": "2026-09-30 02:27",
  "architecture": {
   "inputs": [
    "r",
@@ -53,7 +53,7 @@
    20.5
   ],
   "sensor_noise_c": 0.5,
-  "seconds": 443.0,
+  "seconds": 377.9,
   "sensors": "DTS fibre in wellbore (every 2 m) + observation wells at 8 m and 20 m, every 4 days"
  },
  "history": [
@@ -1361,8 +1361,8 @@
   ]
  },
  "speed": {
-  "solver_ms": 304.1,
-  "pinn_ms": 67.55,
-  "speedup": 4.5
+  "solver_ms": 267.3,
+  "pinn_ms": 60.24,
+  "speedup": 4.4
  }
 }

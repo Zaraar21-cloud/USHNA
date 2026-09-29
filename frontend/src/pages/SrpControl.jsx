@@ -19,11 +19,11 @@ function evaluate(s, spm, down) {
     gross, fill, fmi, L, pip,
     constraints: [
       { name: 'FMI(z) > 0.15 for all z', value: fmi.fmi.toFixed(2), ok: fmi.fmi > FIELD.fmiLimit, margin: (fmi.fmi - FIELD.fmiLimit) / 0.85, source: 'Rod float criterion (4.5)' },
-      { name: 'Load within modified Goodman', value: fmt.pct(L.goodman), ok: L.goodman <= 1, margin: 1 - L.goodman, source: 'Rod fatigue life' },
-      { name: 'Pump fillage > 85%', value: fmt.pct(fill), ok: fill > FIELD.fillageLimit, margin: (fill - FIELD.fillageLimit) / 0.15, source: 'Avoids fluid pound and impact loading' },
+      { name: 'Load within modified Goodman limit', value: fmt.pct(L.goodman), ok: L.goodman <= 1, margin: 1 - L.goodman, source: 'Rod fatigue life' },
+      { name: 'Pump fillage > 85%', value: fmt.pct(fill), ok: fill > FIELD.fillageLimit, margin: (fill - FIELD.fillageLimit) / 0.15, source: 'Prevents fluid pound and impact loading' },
       { name: 'Gearbox torque ≤ rating', value: `${fmt.n1(L.torque)} / ${FIELD.torqueRating} kN·m`, ok: L.torque <= FIELD.torqueRating, margin: 1 - L.torque / FIELD.torqueRating, source: 'Surface equipment limit (API 456)' },
-      { name: 'Motor loading within VFD envelope', value: `${fmt.n1(L.powerKW)} / ${MOTOR_KW} kW`, ok: L.powerKW <= MOTOR_KW, margin: 1 - L.powerKW / MOTOR_KW, source: 'Electrical limit' },
-      { name: 'Pump intake pressure > NPSH', value: `${pip.toFixed(2)} MPa`, ok: pip > NPSH_MPA, margin: (pip - NPSH_MPA) / 2, source: 'Cavitation avoidance' },
+      { name: 'Motor load within Variable Frequency Drive (VFD) limit', value: `${fmt.n1(L.powerKW)} / ${MOTOR_KW} kW`, ok: L.powerKW <= MOTOR_KW, margin: 1 - L.powerKW / MOTOR_KW, source: 'Electrical limit' },
+      { name: 'Pump intake pressure > Net Positive Suction Head (NPSH)', value: `${pip.toFixed(2)} MPa`, ok: pip > NPSH_MPA, margin: (pip - NPSH_MPA) / 2, source: 'Cavitation avoidance' },
     ],
   };
 }
@@ -52,33 +52,33 @@ export default function SrpControl({ ctx }) {
 
   return (
     <>
-      <PageHeader title="SRP control & safety envelope" subtitle="Try a pumping speed and see whether the safety rules let it through. Unsafe requests are clamped, and every veto is logged." />
+      <PageHeader title="Sucker Rod Pump (SRP) Control & Safety Envelope" subtitle="Evaluate a proposed pumping speed against the safety constraints. Unsafe requests are limited, and every intervention is logged." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card title="Setpoint what-if (forward solve)" icon={SlidersHorizontal} className="lg:col-span-5">
+        <Card title="Setpoint Evaluation (Forward Solution)" icon={SlidersHorizontal} className="lg:col-span-5">
           <Slider label="Strokes per minute" value={spm} min={2} max={9} step={0.1} onChange={setSpm} display={spm.toFixed(1)} />
-          <Slider label="Downstroke velocity" value={down} min={0.7} max={1} step={0.05} onChange={setDown} display={fmt.pct(down)} hint={`upstroke speeds up ×${(1 / (2 - 1 / down)).toFixed(2)} to keep the cycle time`} />
+          <Slider label="Downstroke velocity" value={down} min={0.7} max={1} step={0.05} onChange={setDown} display={fmt.pct(down)} hint={`Upstroke speed increases ×${(1 / (2 - 1 / down)).toFixed(2)} to maintain the cycle time`} />
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <Kpi label="Min FMI" value={ev.fmi.fmi.toFixed(2)} tone={ev.fmi.fmi > FIELD.fmiLimit ? 'ok' : 'crit'} />
-            <Kpi label="Gross bbl/d" value={fmt.n0(ev.gross)} />
-            <Kpi label="Fillage" value={fmt.pct(ev.fill)} tone={ev.fill > FIELD.fillageLimit ? 'ok' : 'warn'} />
+            <Kpi label="Minimum FMI" value={ev.fmi.fmi.toFixed(2)} tone={ev.fmi.fmi > FIELD.fmiLimit ? 'ok' : 'crit'} />
+            <Kpi label="Gross rate, bbl/d" value={fmt.n0(ev.gross)} />
+            <Kpi label="Pump fillage" value={fmt.pct(ev.fill)} tone={ev.fill > FIELD.fillageLimit ? 'ok' : 'warn'} />
           </div>
           <div className="mt-4 rounded-xl border border-line bg-canvas p-3 text-sm">
-            MPC optimum now: <b className="num">SPM {s.mpc.spm?.toFixed(1)}</b>, downstroke <b className="num">{fmt.pct(s.mpc.down)}</b>
-            <button onClick={() => { setSpm(s.mpc.spm); setDown(s.mpc.down); }} className="ml-2 font-medium text-brand-600 hover:underline">load</button>
+            Current Model Predictive Control (MPC) optimum: <b className="num">SPM {s.mpc.spm?.toFixed(1)}</b>, downstroke <b className="num">{fmt.pct(s.mpc.down)}</b>
+            <button onClick={() => { setSpm(s.mpc.spm); setDown(s.mpc.down); }} className="ml-2 font-medium text-brand-600 hover:underline">Load values</button>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button onClick={() => Promise.resolve(ctx.submit({ spm: +spm.toFixed(1), down: +down.toFixed(2) })).then(setResult)} className="btn-primary">
-              <ShieldCheck size={15} /> Submit through envelope
+              <ShieldCheck size={15} /> Submit via Safety Envelope
             </button>
             {result && (
               <span className="text-sm text-ink-2">
-                {result.binding ? <>Clamped to <b>SPM {result.applied.spm.toFixed(1)}</b>. Binding: {result.binding}</> : <>Accepted. <b>SPM {result.applied.spm.toFixed(1)}</b> is now live.</>}
+                {result.binding ? <>Limited to <b>SPM {result.applied.spm.toFixed(1)}</b>. Binding constraint: {result.binding}</> : <>Accepted. <b>SPM {result.applied.spm.toFixed(1)}</b> is now the active setpoint.</>}
               </span>
             )}
           </div>
         </Card>
 
-        <Card title="Hard constraints" icon={ListChecks} className="lg:col-span-7" pad="p-0">
+        <Card title="Hard Constraints" icon={ListChecks} className="lg:col-span-7" pad="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-y border-line bg-canvas"><tr>{['Constraint', 'Value', 'Status', 'Physical source'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>
@@ -87,7 +87,7 @@ export default function SrpControl({ ctx }) {
                   <tr key={c.name} className="border-b border-line last:border-0">
                     <td className="td font-medium">{c.name}</td>
                     <td className="td">{c.value}</td>
-                    <td className="td">{!c.ok ? <Status tone="crit">Violated</Status> : c === binding ? <Status tone="warn">Closest to binding</Status> : <Status tone="ok">OK</Status>}</td>
+                    <td className="td">{!c.ok ? <Status tone="crit">Violated</Status> : c === binding ? <Status tone="warn">Closest to limit</Status> : <Status tone="ok">Satisfied</Status>}</td>
                     <td className="td whitespace-normal text-ink-2">{c.source}</td>
                   </tr>
                 ))}
@@ -96,7 +96,7 @@ export default function SrpControl({ ctx }) {
           </div>
         </Card>
 
-        <Card title="VFD velocity profile within one stroke" icon={Gauge} className="lg:col-span-7" right={<Legend items={[['fixed-speed unit', '#8C8C9A', true], ['asymmetric VFD profile', VIZ.purple]]} />}>
+        <Card title="Variable Frequency Drive (VFD) Velocity Profile within One Stroke" icon={Gauge} className="lg:col-span-7" right={<Legend items={[['Fixed-speed unit', '#8C8C9A', true], ['Asymmetric VFD profile', VIZ.purple]]} />}>
           <div className="h-60">
             <ResponsiveContainer>
               <LineChart data={profile} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -110,26 +110,26 @@ export default function SrpControl({ ctx }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-2 text-sm text-ink-2"><b className="text-ink">In heavy oil, the downstroke is the constrained half of the cycle.</b> A slow, controlled downstroke removes float and impact loading, and a faster upstroke wins back the cycle time.</p>
+          <p className="mt-2 text-sm text-ink-2"><b className="text-ink">In heavy-oil wells, the downstroke is the constrained half of the pumping cycle.</b> A slower, controlled downstroke eliminates rod float and impact loading, and a faster upstroke recovers the cycle time.</p>
         </Card>
 
-        <Card tour="envelope" title="Safety envelope log" icon={ShieldCheck} className="lg:col-span-5" pad="p-0">
+        <Card tour="envelope" title="Safety Envelope Log" icon={ShieldCheck} className="lg:col-span-5" pad="p-0">
           <div className="max-h-80 overflow-auto">
             <table className="w-full">
-              <thead className="sticky top-0 border-y border-line bg-canvas"><tr>{['Time', 'Well', 'Requested → applied', 'Binding'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>
+              <thead className="sticky top-0 border-y border-line bg-canvas"><tr>{['Time', 'Well', 'Requested → applied', 'Binding constraint'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>
               <tbody>
                 {ctx.log.map((l, i) => (
                   <tr key={i} className="border-b border-line last:border-0 align-top">
                     <td className="td text-ink-3">{l.time}</td>
                     <td className="td font-medium">{l.well}</td>
                     <td className="td whitespace-normal text-xs">{l.requested}<br />→ {l.applied}</td>
-                    <td className="td">{l.binding ? <Badge tone="warn">{l.binding}</Badge> : <Badge tone="ok">accepted</Badge>}</td>
+                    <td className="td">{l.binding ? <Badge tone="warn">{l.binding}</Badge> : <Badge tone="ok">Accepted</Badge>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="border-t border-line px-4 py-3 text-xs text-ink-3">The log is also a training signal. If the controller keeps getting clamped at the same constraint, that is where the well's real limit is.</p>
+          <p className="border-t border-line px-4 py-3 text-xs text-ink-3">The log also serves as a learning signal: if the controller is repeatedly limited by the same constraint, that constraint marks the well's actual operating limit.</p>
         </Card>
       </div>
     </>

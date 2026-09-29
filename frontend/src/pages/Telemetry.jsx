@@ -4,7 +4,7 @@ import { Radio, Zap, Upload, Pause, Play, Cpu, WifiOff } from 'lucide-react';
 import { PageHeader, Card, StatRow, Badge, Legend, VIZ, AXIS, GRID } from '../components/ui';
 import { RecordsUpload } from '../components/Records';
 
-const HZ = 20, WINDOW = 15 * HZ, JERK_LIMIT = 4, SIM = 'simulated edge stream';
+const HZ = 20, WINDOW = 15 * HZ, JERK_LIMIT = 4, SIM = 'Simulated edge stream';
 
 function sample(t, spm, impact) {
   const th = (2 * Math.PI * spm * t) / 60;
@@ -45,7 +45,7 @@ export default function Telemetry({ ctx }) {
     file.text().then((txt) => {
       const rows = txt.trim().split(/\r?\n/).slice(1).map((l) => l.split(','));
       const parsed = rows.filter((r) => r[1] !== '').map((r, i) => ({ t: i / HZ, z: +r[1], jerk: +r[2], anomaly: r[3] === 'TRUE' }));
-      const flagged = rows.filter((r) => r[3] === 'TRUE').map((r) => ({ at: r[0], jerk: 'edge flag' }));
+      const flagged = rows.filter((r) => r[3] === 'TRUE').map((r) => ({ at: r[0], jerk: 'edge-flagged' }));
       setSource(`${file.name} · ${rows.length} rows`);
       setData(parsed.slice(-WINDOW));
       setEvents(flagged.slice(-8).reverse());
@@ -59,14 +59,14 @@ export default function Telemetry({ ctx }) {
   return (
     <>
       <PageHeader
-        title="Edge telemetry"
-        subtitle="A simulated vibration stream from the polished rod, the kind an edge accelerometer would send. Spikes flag rod impact or float. Load a CSV from arduino_bridge.py to replay real sensor data instead."
+        title="Edge Telemetry"
+        subtitle="A simulated polished-rod vibration stream, representative of an edge-mounted accelerometer. Spikes indicate rod impact or rod float. Load a CSV file recorded by arduino_bridge.py to replay measured sensor data."
         right={
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setRunning((r) => !r)} disabled={source !== SIM} className="btn-ghost disabled:opacity-40">{running ? <><Pause size={15} /> Pause</> : <><Play size={15} /> Resume</>}</button>
-            <button onClick={() => { impactUntil.current = t.current + 1.2; }} disabled={source !== SIM} className="btn-ghost disabled:opacity-40"><Zap size={15} /> Inject impact</button>
+            <button onClick={() => { impactUntil.current = t.current + 1.2; }} disabled={source !== SIM} className="btn-ghost disabled:opacity-40"><Zap size={15} /> Simulate Impact</button>
             <label className="btn-primary cursor-pointer">
-              <Upload size={15} /> Load bridge CSV
+              <Upload size={15} /> Load Sensor CSV
               <input type="file" accept=".csv" className="sr-only" onChange={(e) => e.target.files[0] && loadCsv(e.target.files[0])} />
             </label>
           </div>
@@ -74,7 +74,7 @@ export default function Telemetry({ ctx }) {
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <div data-tour="telemetry" className="space-y-4 lg:col-span-8">
-        <Card title="Z-acceleration (g) and jerk" icon={Radio} right={<Legend items={[['z accel', VIZ.purple], ['jerk', VIZ.pink]]} />}>
+        <Card title="Vertical Acceleration (g) and Jerk" icon={Radio} right={<Legend items={[['Vertical acceleration', VIZ.purple], ['Jerk', VIZ.pink]]} />}>
           <div className="h-44">
             <ResponsiveContainer>
               <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -101,28 +101,28 @@ export default function Telemetry({ ctx }) {
         <RecordsUpload ctx={ctx} />
         </div>
         <div className="space-y-4 lg:col-span-4">
-          <Card title="Edge node" icon={Cpu}>
+          <Card title="Edge Node" icon={Cpu}>
             <StatRow label="Source" value={<Badge tone={source === SIM ? 'info' : 'ok'}>{source}</Badge>} />
             <StatRow label="Sample rate" value={HZ} unit="Hz" />
             <StatRow label="Jerk alarm threshold" value={JERK_LIMIT} unit="g/s" />
-            <StatRow label="SPM (from twin setpoint)" value={s.sp.spm.toFixed(1)} />
+            <StatRow label="SPM (digital twin setpoint)" value={s.sp.spm.toFixed(1)} />
             <StatRow label="Samples in window" value={data.length} />
-            <p className="mt-3 flex items-start gap-2 text-xs text-ink-3"><WifiOff size={14} className="mt-0.5 shrink-0" /> The physics core, the FMI monitor and the safety envelope all run on the industrial PC at the pad. The cloud handles fleet analytics only.</p>
+            <p className="mt-3 flex items-start gap-2 text-xs text-ink-3"><WifiOff size={14} className="mt-0.5 shrink-0" /> The physics core, the Float Margin Index monitor and the safety envelope all run on the industrial PC at the well pad. Cloud services handle fleet analytics only.</p>
           </Card>
-          <Card title="Edge alerts: rod float / impact">
-            {events.length === 0 ? <p className="text-sm text-ink-2">No impacts detected. Press “Inject impact” to test.</p> : (
+          <Card title="Edge Alerts: Rod Float and Impact">
+            {events.length === 0 ? <p className="text-sm text-ink-2">No impacts detected. Select “Simulate Impact” to test the alert.</p> : (
               <ul className="space-y-2">
                 {events.map((e, i) => (
                   <li key={i} className="flex items-center justify-between text-sm">
                     <span className="num text-ink-2">{e.at}</span>
-                    <Badge tone="crit">jerk {e.jerk}</Badge>
+                    <Badge tone="crit">Jerk {e.jerk}</Badge>
                   </li>
                 ))}
               </ul>
             )}
             {events.length > 0 && (
               <button onClick={() => ctx.submit({ spm: +(s.sp.spm * 0.9).toFixed(1), down: s.sp.down })} className="btn-primary mt-4 w-full justify-center">
-                Request SPM −10% via safety envelope
+                Request 10% SPM Reduction via Safety Envelope
               </button>
             )}
           </Card>

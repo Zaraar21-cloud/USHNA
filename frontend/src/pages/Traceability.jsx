@@ -3,15 +3,15 @@ import { ArrowDown, RotateCcw } from 'lucide-react';
 import { PageHeader, Card, Status, sub } from '../components/ui';
 
 const REQS = [
-  ['Optimize CSS cycle parameters', 'Marx–Langenheim / Boberg–Lantz core driving NPV Bayesian optimization', 'CssDesign', 'CSS design'],
+  ['Optimize Cyclic Steam Stimulation (CSS) cycle parameters', 'Marx–Langenheim / Boberg–Lantz core driving NPV Bayesian optimization', 'CssDesign', 'Cyclic Steam Design'],
   ['Predict reservoir heating, cooling and production', 'Thermal decline model + trained PINN surrogate, corrected by EnKF', 'Learning', 'Learning Layers'],
-  ['Continuously optimize SRP stroke speed and SPM', 'MPC on the Gibbs rod model, driven by μ(T_pump)', 'SrpControl', 'SRP control'],
-  ['Detect rod floating; minimise impact loading', 'Float Margin Index as live scalar and hard MPC constraint; asymmetric VFD stroke', 'RodString', 'Rod string'],
-  ['Improve pump efficiency and equipment reliability', 'Inverse card diagnosis; fillage constraint; Goodman fatigue accounting', 'RodString', 'Card diagnosis'],
-  ['Optimize steam and energy consumption; reduce cost', 'Optimal-stopping cut-off; NPV objective with steam and electrical cost', 'CssDesign', 'Cut-off'],
-  ['Reduce Steam–Oil Ratio', 'Cut-off rule plus soak-time and steam-volume optimization', 'CssDesign', 'Cycle design'],
-  ['Lower energy per barrel', 'MPC energy term; no wasted work against float and fluid pound', 'SrpControl', 'SRP control'],
-  ['Reduce rod failures and pump unsetting', 'FMI constraint, Lubinski buckling, Goodman envelope; slow downstroke', 'RodString', 'Fatigue & buckling'],
+  ['Continuously optimize Sucker Rod Pump (SRP) stroke speed and strokes per minute (SPM)', 'MPC on the Gibbs rod model, driven by μ(T_pump)', 'SrpControl', 'Sucker Rod Pump Control'],
+  ['Detect rod float; minimise impact loading', 'Float Margin Index as live scalar and hard MPC constraint; asymmetric VFD stroke', 'RodString', 'Rod String'],
+  ['Improve pump efficiency and equipment reliability', 'Inverse card diagnosis; fillage constraint; Goodman fatigue accounting', 'RodString', 'Dynamometer Card Diagnosis'],
+  ['Optimize steam and energy consumption; reduce cost', 'Optimal-stopping cut-off; NPV objective with steam and electrical cost', 'CssDesign', 'Economic Cut-off'],
+  ['Reduce Steam-Oil Ratio (SOR)', 'Cut-off rule plus soak-time and steam-volume optimization', 'CssDesign', 'Cycle Design'],
+  ['Lower energy per barrel', 'MPC energy term; no work wasted against rod float and fluid pound', 'SrpControl', 'Sucker Rod Pump Control'],
+  ['Reduce rod failures and pump unsetting', 'FMI constraint, Lubinski buckling, Goodman envelope; slow downstroke', 'RodString', 'Fatigue & Buckling'],
   ['Data-driven and predictive decision making', 'Trained PINN surrogate, EnKF assimilation, bounded GP residual, symbolic regression', 'Learning', 'Learning Layers'],
 ];
 
@@ -21,9 +21,9 @@ const ROADMAP = [
   ['EnKF assimilation loop with collapsing uncertainty bands', 'ok', 'Done (ushna/ml/enkf.py)'],
   ['PINN trained in PyTorch, validated on unseen designs, energy-audited', 'ok', 'Done (ushna/ml/pinn_training.py)'],
   ['GP residual, symbolic regression, inverse card diagnosis', 'ok', 'Done (ushna/ml)'],
-  ['MPC controller and safety envelope, closed loop through a cooling cycle', 'warn', 'Pending: grid-search stand-in in UI'],
-  ['CSS optimizer and optimal-stopping cut-off; NPV and SOR vs history', 'warn', 'In-browser grid evaluation; GP-BO pending'],
-  ['Dashboard, wellbore visualisation, backtest, explainability cards', 'ok', 'This prototype'],
+  ['MPC controller and safety envelope, closed loop through a cooling cycle', 'warn', 'In progress: grid search in the interface'],
+  ['CSS optimizer and optimal-stopping cut-off; NPV and SOR vs history', 'warn', 'In-browser grid evaluation; Gaussian-process Bayesian optimization in progress'],
+  ['Dashboard, wellbore visualisation, backtest, explainability cards', 'ok', 'Implemented in this prototype'],
 ];
 
 const Box = ({ title, children, tone = 'plain' }) => (
@@ -37,40 +37,40 @@ const Down = () => <div className="flex justify-center py-1"><ArrowDown size={16
 export default function Traceability({ ctx }) {
   return (
     <>
-      <PageHeader title="Traceability" subtitle="Which part of the system answers each requirement in the problem statement, and how far each part is built." />
+      <PageHeader title="Traceability" subtitle="The system component that addresses each requirement in the problem statement, and the implementation status of each component." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card title="System architecture: a closed loop" className="lg:col-span-2">
+        <Card title="System Architecture: Closed-Loop Operation" className="lg:col-span-2">
           <div className="relative pr-8">
             <Box title="Observation layer" tone="obs">SCADA · VFD · surface dynamometer · THP/CHP · steam mass flow · echometer · flowline T · cycle records (CSV · XLSX · PDF)</Box>
             <Down />
-            <Box title="Data assimilation — EnKF">kh · skin · heat-loss coefficient · rod damping c · PVT · pump slippage</Box>
+            <Box title="Data assimilation: Ensemble Kalman Filter">kh · skin · heat-loss coefficient · rod damping c · PVT · pump slippage</Box>
             <Down />
             <div className="rounded-xl border border-dashed border-viz-pink p-2">
               <div className="mb-2 text-center text-[11px] font-semibold uppercase text-viz-pink">Physics core · coupled through μ({sub("T_pump")})</div>
               <div className="grid grid-cols-3 gap-2">
                 <Box title="Reservoir">M–L, B–L ⇒ r_h, T̄, q_o</Box>
                 <Box title="Wellbore">Ramey ⇒ T(z,t), T_pump</Box>
-                <Box title="Rod string">Gibbs ⇒ cards, FMI</Box>
+                <Box title="Rod String">Gibbs ⇒ cards, FMI</Box>
               </div>
             </div>
             <Down />
-            <Box title="Optimization layer">CSS: NPV Bayesian opt. · cut-off rule · SRP: MPC on SPM, stroke, VFD profile</Box>
+            <Box title="Optimization layer">CSS: NPV Bayesian optimization · economic cut-off rule · SRP: MPC on SPM, stroke and VFD profile</Box>
             <Down />
-            <Box title="Safety envelope" tone="safety">Hard physics bounds · may veto or clamp · logs every veto</Box>
+            <Box title="Safety envelope" tone="safety">Hard physical limits · may reject or limit setpoints · logs every intervention</Box>
             <Down />
             <Box title="Actuation & operator interface">VFD setpoints · CSS cycle plan · explainability cards</Box>
             <div className="absolute bottom-6 right-0 top-6 flex w-6 flex-col items-center justify-center rounded-r-xl border-y border-r border-dashed border-ink-3">
               <RotateCcw size={13} className="text-ink-3" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-ink-3">If a model doesn't correct itself against its own well, it's a simulator, not a twin.</p>
+          <p className="mt-3 text-xs text-ink-3">A model that does not continuously recalibrate against its own well is a simulator, not a digital twin.</p>
         </Card>
 
         <div className="space-y-4 lg:col-span-3">
-          <Card title="Required outcome → delivering component" pad="p-0" className="overflow-hidden">
+          <Card title="Requirement Traceability Matrix" pad="p-0" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-y border-line bg-canvas"><tr>{['Required outcome', 'Delivering component', 'See it'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>
+                <thead className="border-y border-line bg-canvas"><tr>{['Required outcome', 'Delivering component', 'Location'].map((c) => <th key={c} className="th">{c}</th>)}</tr></thead>
                 <tbody>
                   {REQS.map(([req, comp, page, label]) => (
                     <tr key={req} className="border-b border-line last:border-0 align-top">
@@ -83,7 +83,7 @@ export default function Traceability({ ctx }) {
               </table>
             </div>
           </Card>
-          <Card title="Build roadmap" pad="p-0" className="overflow-hidden">
+          <Card title="Implementation Roadmap" pad="p-0" className="overflow-hidden">
             <table className="w-full">
               <tbody>
                 {ROADMAP.map(([d, tone, st], i) => (

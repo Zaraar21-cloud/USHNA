@@ -1,8 +1,8 @@
 // Client for the FastAPI edge service (api/main.py). Used only when the viewer switches
 // the data source to "API"; the local twin (twin.js) stays the default so a static
 // deploy with no backend keeps working.
-// Same origin when served by the edge container; localhost:8000 under `npm run dev`.
-export const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
+// Same origin under /api in production (Vercel function or edge container); localhost:8000 under `npm run dev`.
+export const API_BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
 
 async function call(path, init) {
   const res = await fetch(`${API_BASE}${path}`, init);

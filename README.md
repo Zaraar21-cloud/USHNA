@@ -4,6 +4,8 @@ A physics-first digital twin for well-to-surface optimization of Cyclic Steam St
 
 Developed for Smart India Hackathon (Problem Statement ID 26120, Oil India Limited).
 
+**Live prototype:** [https://ushna-digital-twin.vercel.app/](https://ushna-digital-twin.vercel.app/). This is a working example of the dashboard and is still heavily in progress, so expect rough edges and frequent changes.
+
 ## Project Overview
 
 USHNA integrates thermal reservoir models with wellbore and surface equipment physics. The objective is to optimize steam injection and pumping schedules dynamically as reservoir viscosity changes, preventing equipment failures such as rod floating and fluid pound. 

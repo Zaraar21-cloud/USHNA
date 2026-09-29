@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
-import { Thermometer, Clock, Layers } from 'lucide-react';
+import { Thermometer, Clock } from 'lucide-react';
 import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt } from '../components/ui';
-import { FIELD, ROD, tubingProfile } from '../data/twin';
+import { FIELD, tubingProfile, heatedRadius, viscosity } from '../data/twin';
 
+const Wellbore3DModel = lazy(() => import('../components/Wellbore3DModel')); // three.js loads only on this page
 const TAU_H = 9; // wellbore thermal lag, hours
+const SPEED = 5; // pump strokes drawn 5× real time at 1× pace, so a stroke reads in a couple of seconds
 
 export default function Wellbore({ ctx }) {
   const { s } = ctx;
@@ -18,13 +20,15 @@ export default function Wellbore({ ctx }) {
 
   return (
     <>
-      <PageHeader title="Wellbore" subtitle="How the oil cools on its way up the well, which sets how thick it is when it reaches the pump." />
+      <PageHeader title="Wellbore" subtitle="Heat loss from the produced fluid as it rises through the wellbore, which determines crude viscosity at the pump intake." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card title="Well schematic" icon={Layers} className="lg:col-span-3">
-          <Schematic prof={prof} s={s} />
-        </Card>
+        <div className="lg:col-span-12">
+          <Suspense fallback={<div className="card grid h-[720px] place-items-center text-sm text-ink-3">Loading the three-dimensional wellbore model…</div>}>
+            <Well3D ctx={ctx} />
+          </Suspense>
+        </div>
 
-        <Card tour="ramey" title="Temperature and viscosity with depth (Ramey)" icon={Thermometer} className="lg:col-span-6" right={<Legend items={[['tubing fluid', VIZ.orange], ['geothermal', '#8C8C9A', true], ['μ(z)', VIZ.pink]]} />}>
+        <Card tour="ramey" title="Temperature and Viscosity Profiles with Depth (Ramey)" icon={Thermometer} className="lg:col-span-9" right={<Legend items={[['Tubing fluid', VIZ.orange], ['Geothermal', '#8C8C9A', true], ['Viscosity μ(z)', VIZ.pink]]} />}>
           <div className="grid h-80 grid-cols-2 gap-2">
             <ResponsiveContainer>
               <LineChart layout="vertical" data={prof} margin={{ top: 5, right: 10, left: -5, bottom: 0 }}>
@@ -47,23 +51,23 @@ export default function Wellbore({ ctx }) {
             </ResponsiveContainer>
           </div>
           <div className="mt-4">
-            <Eq note={<><Tex>{String.raw`A = \frac{w\,c_p}{2\pi}\left(\frac{1}{r\,U} + \frac{f(t)}{k}\right)`}</Tex> is the relaxation distance. It grows with rate, so faster pumping keeps the column warmer.</>}>
+            <Eq note={<><Tex>{String.raw`A = \frac{w\,c_p}{2\pi}\left(\frac{1}{r\,U} + \frac{f(t)}{k}\right)`}</Tex> is the relaxation distance. It increases with flow rate, so faster pumping keeps the fluid column warmer.</>}>
               {String.raw`T(z,t) = T_{geo}(z) + g_G\,A\left(1 - e^{-(L-z)/A}\right) + \left(T_{pump} - T_{geo}(L)\right)e^{-(L-z)/A}`}
             </Eq>
           </div>
         </Card>
 
-        <Card title="Now" icon={Thermometer} className="lg:col-span-3">
-          <StatRow label="T_pump" value={fmt.n0(s.now.Tpump)} unit="°C" />
-          <StatRow label="μ at pump" value={fmt.n0(s.now.mu)} unit="cP" />
-          <StatRow label="T at surface" value={fmt.n0(prof[0].T)} unit="°C" />
-          <StatRow label="μ at surface" value={fmt.n0(prof[0].mu)} unit="cP" />
+        <Card title="Current Conditions" icon={Thermometer} className="lg:col-span-3">
+          <StatRow label="Pump-intake temperature T_pump" value={fmt.n0(s.now.Tpump)} unit="°C" />
+          <StatRow label="Viscosity at pump" value={fmt.n0(s.now.mu)} unit="cP" />
+          <StatRow label="Temperature at surface" value={fmt.n0(prof[0].T)} unit="°C" />
+          <StatRow label="Viscosity at surface" value={fmt.n0(prof[0].mu)} unit="cP" />
           <StatRow label="Pump setting depth" value={FIELD.pumpDepth} unit="m" />
           <StatRow label="Geothermal gradient" value={FIELD.gradGeo * 1000} unit="°C/km" />
-          <StatRow label="Gross rate" value={fmt.n0(s.now.gross)} unit="bbl/d" />
+          <StatRow label="Gross fluid rate" value={fmt.n0(s.now.gross)} unit="bbl/d" />
         </Card>
 
-        <Card title="Why the controller must be predictive: thermal lag after a rate change" icon={Clock} className="lg:col-span-12" right={<Legend items={[['physics (Ramey transient)', VIZ.orange], ['naive reactive assumption', '#8C8C9A', true]]} />}>
+        <Card title="Wellbore Thermal Lag after a Rate Change: Basis for Predictive Control" icon={Clock} className="lg:col-span-12" right={<Legend items={[['Physics (Ramey transient)', VIZ.orange], ['Instantaneous-response assumption', '#8C8C9A', true]]} />}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="h-56 lg:col-span-2">
               <ResponsiveContainer>
@@ -73,14 +77,14 @@ export default function Wellbore({ ctx }) {
                   <YAxis {...AXIS} width={44} domain={['auto', 'auto']} tickFormatter={(v) => `${v.toFixed(1)}°`} />
                   <Tooltip formatter={(v) => `${fmt.n1(v)} °C`} labelFormatter={(l) => `${l} h after rate change`} />
                   <ReferenceLine x={TAU_H} stroke={VIZ.purple} strokeDasharray="4 3" label={{ value: `τ ≈ ${TAU_H} h`, position: 'insideTopRight', fontSize: 11, fill: VIZ.purple }} />
-                  <Line dataKey="T" name="Fluid T at 300 m" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line dataKey="naive" type="stepAfter" name="Instant response" stroke="#8C8C9A" strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+                  <Line dataKey="T" name="Fluid temperature at 300 m" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
+                  <Line dataKey="naive" type="stepAfter" name="Instantaneous response" stroke="#8C8C9A" strokeDasharray="4 3" dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             <p className="text-sm text-ink-2">
-              A rate change reaches rod loading hours later. A reactive controller that expects an instant response over-corrects and oscillates.
-              The MPC evaluates constraints at the end of the lag (+48 h), because the lag is part of its model.
+              A rate change affects rod loading only several hours later. A reactive controller that assumes an instantaneous response over-corrects and oscillates.
+              The Model Predictive Controller (MPC) evaluates constraints at the end of the lag (+48 h), because the lag is part of its model.
             </p>
           </div>
         </Card>
@@ -89,28 +93,49 @@ export default function Wellbore({ ctx }) {
   );
 }
 
-function Schematic({ prof, s }) {
-  const H = 420, top = 20, scale = (H - 40) / FIELD.pumpDepth;
-  const color = (T) => {
-    const k = Math.max(0, Math.min(1, (T - 30) / 60));
-    return `rgb(${Math.round(246 - 4 * k)}, ${Math.round(230 - 146 * k)}, ${Math.round(160 - 5 * k)})`;
+// The 3D well follows the twin, and during Run cycle the camera follows the phase:
+// surface first, then down to the steam wave, then the pump as production starts.
+function Well3D({ ctx }) {
+  const { s, well, day, demoT: t, playing, pace } = ctx;
+  const demo = t != null, soak = well.soak, start = -(FIELD.tInj + soak);
+  const injecting = demo && t < -soak, soaking = demo && t >= -soak && t < 0;
+  // Production: the hot core cools (Boberg–Lantz T̄) and its isotherm shrinks with it.
+  const span = FIELD.T_s - FIELD.T_R, warm = (Tbar) => s.rh * Math.sqrt(Math.max(0.02, (Tbar - FIELD.T_R) / span));
+  const T0 = s.rows[0].Tbar, f = soaking ? (t + soak + 1) / soak : 0;
+  const heat = injecting ? { radius: heatedRadius(well.steam, t - start + 1), core: FIELD.T_s }
+    : soaking ? { radius: s.rh + (warm(T0) - s.rh) * f, core: FIELD.T_s + (T0 - FIELD.T_s) * f }
+    : { radius: warm(s.now.Tbar), core: s.now.Tbar };
+  const view = !demo ? undefined
+    : t < start + 5 ? 'Surface'
+    : t < 0 ? 'Heated Zone'
+    : t >= FIELD.horizon ? 'Full Well'
+    : t > s.cut.day ? 'Heated Zone' : 'Pump & Pay Zone';
+  const pumping = !(demo && t < 0) && !(demo && !playing && t < FIELD.horizon);
+  const phaseLabel = injecting ? `Steam injection · day ${t - start + 1} of ${FIELD.tInj}` : soaking ? `Soak (shut-in) · day ${t + soak + 1} of ${soak}` : undefined;
+  const pump = pumping ? `${s.sp.spm.toFixed(1)} SPM · ${fmt.n0(s.now.gross)} bbl/d` : 'Off';
+  const muCold = viscosity(FIELD.T_R);
+  const info = {
+    thermal: {
+      title: injecting ? 'Steam Front' : 'Heated Zone',
+      rows: [['Core temperature', `${fmt.n0(heat.core)} °C`], ['Heated radius', `${heat.radius.toFixed(1)} m`],
+        ['Oil temperature at pump', `${fmt.n0(s.now.Tpump)} °C`], ['Viscosity at pump', `${fmt.n0(s.now.mu)} cP`], ['Pump', pump]],
+      note: injecting || soaking
+        ? 'Steam heats the crude surrounding the well. The pump remains off until the soak period ends.'
+        : 'Heated, lower-viscosity crude flows readily to the pump. As this zone cools, viscosity rises, so the controller reduces pump speed to prevent rod float.',
+    },
+    oil: {
+      title: 'Unheated Heavy Crude',
+      rows: [['Reservoir temperature', `${FIELD.T_R} °C`], ['Unheated crude viscosity', `${fmt.n0(muCold)} cP`], ['Inflow to pump', `${fmt.n0(s.now.inflow)} bbl/d`],
+        ['Pump fillage', `${Math.round(s.now.fillage * 100)}%`], ['Float Margin Index', `${s.fmiMin.fmi.toFixed(2)} (limit ${FIELD.fmiLimit})`]],
+      note: `Beyond the heated radius the crude is approximately ${fmt.n0(muCold / s.now.mu)}× more viscous than at the pump and flows very slowly, which limits how quickly the pump can fill.`,
+    },
   };
   return (
-    <svg viewBox={`0 0 180 ${H}`} className="mx-auto w-full max-w-[200px]" role="img" aria-label="Wellbore schematic coloured by fluid temperature">
-      <rect x="70" y={top} width="40" height={H - 40} fill="#F1F1F5" stroke="#D5D5DE" />
-      {prof.map((p) => <rect key={p.z} x="80" y={top + p.z * scale} width="20" height={20 * scale + 0.5} fill={color(p.T)} />)}
-      {ROD.sections.map((sec) => (
-        <g key={sec.name}>
-          <rect x={89 - sec.d * 80} y={top + sec.from * scale} width={2 + sec.d * 160} height={(sec.to - sec.from) * scale} fill="#16161D" opacity="0.55" />
-          <line x1="112" x2="120" y1={top + sec.from * scale} y2={top + sec.from * scale} stroke="#8C8C9A" />
-          <text x="122" y={top + sec.from * scale + 10} fontSize="9" fill="#5B5B6B">{sec.name}</text>
-        </g>
-      ))}
-      <rect x="82" y={top + FIELD.pumpDepth * scale - 12} width="16" height="12" fill={VIZ.purple} />
-      <text x="122" y={top + FIELD.pumpDepth * scale - 2} fontSize="9" fill={VIZ.purple}>pump {FIELD.pumpDepth} m</text>
-      <line x1="60" x2="68" y1={top + s.fmiMin.z * scale} y2={top + s.fmiMin.z * scale} stroke="#DC2626" strokeWidth="2" />
-      <text x="58" y={top + s.fmiMin.z * scale + 3} fontSize="9" textAnchor="end" fill="#DC2626">min FMI</text>
-      {[0, 300, 600, 900].map((z) => <text key={z} x="4" y={top + z * scale + 3} fontSize="9" fill="#8C8C9A">{z} m</text>)}
-    </svg>
+    <Wellbore3DModel
+      day={day} pumpDepth={FIELD.pumpDepth} reservoirTemp={FIELD.T_R} spm={s.sp.spm} strokeLength={FIELD.stroke}
+      fmi={s.fmiMin.fmi} heat={heat} steam={injecting} animating={pumping} speed={SPEED * (playing ? pace : 1)}
+      view={view} tweenMs={Math.min(3000, 1800 / pace)} info={info} phaseLabel={phaseLabel}
+      height={720} onDayChange={ctx.setDay}
+    />
   );
 }

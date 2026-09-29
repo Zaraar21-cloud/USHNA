@@ -3,8 +3,8 @@ import { Check } from 'lucide-react';
 import { Badge, Tex } from './ui';
 
 const ROWS = [
-  ['why', 'Why'],
-  ['driver', 'Driver'],
+  ['why', 'Rationale'],
+  ['driver', 'Primary driver'],
   ['relation', 'Governing relation'],
   ['effect', 'Expected effect'],
   ['confidence', 'Confidence'],
@@ -21,7 +21,7 @@ export default function RecCard({ rec, wellId, onApply }) {
       <header className="flex flex-wrap items-center gap-2 border-b border-line bg-canvas px-5 py-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Recommendation · Well {wellId} · {time}</span>
         <Badge tone="info">{rec.kind}</Badge>
-        <Badge tone={PRIORITY[rec.priority]}>{rec.priority}</Badge>
+        <Badge tone={PRIORITY[rec.priority]}>{rec.priority[0].toUpperCase() + rec.priority.slice(1)} priority</Badge>
       </header>
       <div className="px-5 py-4">
         <h3 className="text-[17px] font-semibold">{rec.title}</h3>
@@ -36,13 +36,13 @@ export default function RecCard({ rec, wellId, onApply }) {
         {rec.action && onApply && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button onClick={() => setResult(onApply(rec.action))} className="btn-primary">
-              Send to safety envelope
+              Submit via Safety Envelope
             </button>
             {result && (
               <span className="flex items-center gap-1.5 text-sm text-ink-2">
                 <Check size={15} className="text-emerald-600" />
                 {result.binding
-                  ? `Clamped to SPM ${result.applied.spm.toFixed(1)} — ${result.binding} binding`
+                  ? `Limited to SPM ${result.applied.spm.toFixed(1)}; binding constraint: ${result.binding}`
                   : `Applied SPM ${result.applied.spm.toFixed(1)}, downstroke ${Math.round(result.applied.down * 100)}%`}
               </span>
             )}

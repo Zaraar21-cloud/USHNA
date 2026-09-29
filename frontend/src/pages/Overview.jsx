@@ -15,8 +15,8 @@ export default function Overview({ ctx }) {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle={`${FIELD.field}, Rajasthan, 6 of 35 wells modelled. How hot the oil at the pump is, how thick that makes it, and whether the rods are safe at today's pumping speed.`}
-        tabs={['Overview', 'Fleet envelope']}
+        subtitle={`${FIELD.field}, Rajasthan: 6 of 35 wells modelled. Pump-intake temperature, the resulting crude viscosity, and rod-string safety at the current pumping speed.`}
+        tabs={['Overview', 'Fleet Operating Envelope']}
         tab={tab}
         onTab={setTab}
       />
@@ -27,8 +27,8 @@ export default function Overview({ ctx }) {
 
 function OverviewTab({ ctx }) {
   const { s, well, recs } = ctx;
-  const [view, setView] = useState('Now');
-  const r = view === 'Now' ? s.now : s.ahead;
+  const [view, setView] = useState('Current');
+  const r = view === 'Current' ? s.now : s.ahead;
 
   const download = () => {
     const blob = new Blob([JSON.stringify({ well: well.id, day: s.day, setpoint: s.sp, state: r, cutoff: s.cut, mpc: s.mpc }, null, 2)], { type: 'application/json' });
@@ -43,8 +43,8 @@ function OverviewTab({ ctx }) {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[15px] font-semibold">AI layer: the trained models behind this twin</h2>
-          <button onClick={() => ctx.go('Learning')} className="text-sm font-medium text-brand-600 hover:underline">Open Learning Layers</button>
+          <h2 className="text-[15px] font-semibold">Machine Learning Layer: Trained Models Supporting the Digital Twin</h2>
+          <button onClick={() => ctx.go('Learning')} className="text-sm font-medium text-brand-600 hover:underline">View Learning Layers</button>
         </div>
         <AiStrip onPick={(t) => { ctx.setLearnTab(t); ctx.go('Learning'); }} />
       </section>
@@ -54,14 +54,14 @@ function OverviewTab({ ctx }) {
         <div className="flex items-center gap-3">
           <Avatar text={well.id.slice(-2)} color={well.hue} size={34} />
           <div>
-            <h2 className="text-lg font-semibold">{well.id} twin</h2>
-            <p className="text-xs text-ink-3">Cycle {well.cycle} · production day {s.day} · SPM {s.sp.spm.toFixed(1)} · downstroke {Math.round(s.sp.down * 100)}%</p>
+            <h2 className="text-lg font-semibold">{well.id} Digital Twin</h2>
+            <p className="text-xs text-ink-3">Cycle {well.cycle} · Production day {s.day} · Strokes per minute (SPM) {s.sp.spm.toFixed(1)} · Downstroke speed {Math.round(s.sp.down * 100)}%</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Toggle options={['Now', '+48 h']} value={view} onChange={setView} />
+          <Toggle options={['Current', '48-Hour Projection']} value={view} onChange={setView} />
           <button onClick={download} className="flex items-center gap-1.5 text-sm font-medium text-ink-2 hover:text-ink">
-            <Download size={15} /> Download
+            <Download size={15} /> Download State (JSON)
           </button>
         </div>
       </div>
@@ -80,9 +80,9 @@ function OverviewTab({ ctx }) {
       {recs[0] && (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">What the operator sees</h2>
+            <h2 className="text-[15px] font-semibold">Priority Recommendation</h2>
             <button onClick={() => ctx.go('Recommendations')} className="text-sm font-medium text-brand-600 hover:underline">
-              All {recs.length} recommendations
+              View all {recs.length} recommendations
             </button>
           </div>
           <RecCard rec={recs[0]} wellId={well.id} onApply={ctx.submit} />
@@ -96,7 +96,7 @@ function OverviewTab({ ctx }) {
 
 function FieldCard({ sources }) {
   return (
-    <Card title="Field card: where the numbers come from" icon={BookOpen} right={<span className="text-xs text-ink-3">synthetic wells calibrated to these published values</span>}>
+    <Card title="Field Calibration Data and Sources" icon={BookOpen} right={<span className="text-xs text-ink-3">Synthetic wells calibrated to published values</span>}>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map(([k, v, src, edited]) => (
           <div key={k} className="border-l-2 border-amber-300 pl-3">
@@ -113,15 +113,15 @@ function FieldCard({ sources }) {
 function CouplingCard({ s, r, view }) {
   const fmiTone = toneOf(s.fmiMin.fmi, FIELD.fmiLimit);
   return (
-    <Card title="Coupling chain" icon={Activity} right={<span className="text-xs text-ink-3">{view === 'Now' ? 'measured + EnKF' : 'Ramey-lag projection'}</span>}>
-      <StatRow icon={Flame} label="Heated zone T̄" value={fmt.n0(r.Tbar)} unit="°C" />
+    <Card title="Thermal–Mechanical Coupling Chain" icon={Activity} right={<span className="text-xs text-ink-3">{view === 'Current' ? 'Measured, with EnKF update' : 'Projection (Ramey thermal lag)'}</span>}>
+      <StatRow icon={Flame} label="Mean heated-zone temperature T̄" value={fmt.n0(r.Tbar)} unit="°C" />
       <Arrow />
-      <StatRow icon={Thermometer} label="Pump intake T_pump" value={fmt.n0(r.Tpump)} unit="°C" tone={r.Tpump < FIELD.T_onset ? 'warn' : undefined} />
+      <StatRow icon={Thermometer} label="Pump-intake temperature T_pump" value={fmt.n0(r.Tpump)} unit="°C" tone={r.Tpump < FIELD.T_onset ? 'warn' : undefined} />
       <Arrow />
-      <StatRow icon={Droplet} label="Viscosity μ(T_pump)" value={fmt.n0(r.mu)} unit="cP" />
+      <StatRow icon={Droplet} label="Crude viscosity μ(T_pump)" value={fmt.n0(r.mu)} unit="cP" />
       <Arrow />
-      <StatRow icon={ShieldAlert} label={`Min FMI (at ${s.fmiMin.z} m)`} value={fmt.n2(s.fmiMin.fmi)} tone={fmiTone} />
-      <StatRow icon={Gauge} label="(S·N)max → SPM max" value={s.spmMax.toFixed(1)} unit={`set ${s.sp.spm.toFixed(1)}`} tone={s.sp.spm > s.spmMax ? 'crit' : 'ok'} />
+      <StatRow icon={ShieldAlert} label={`Minimum Float Margin Index (at ${s.fmiMin.z} m)`} value={fmt.n2(s.fmiMin.fmi)} tone={fmiTone} />
+      <StatRow icon={Gauge} label="Maximum safe SPM, (S·N)max" value={s.spmMax.toFixed(1)} unit={`setpoint ${s.sp.spm.toFixed(1)}`} tone={s.sp.spm > s.spmMax ? 'crit' : 'ok'} />
     </Card>
   );
 }
@@ -129,11 +129,11 @@ const Arrow = () => <div className="-my-1 flex pl-[9px]"><ArrowDown size={10} cl
 
 // [label, value, format, format |Δ|, +1 if higher is better / −1 if lower is better]
 const DELTAS = [
-  ['Min FMI', (x) => x.fmiMin.fmi, fmt.n2, fmt.n2, 1],
-  ['Cut-off day', (x) => x.cut.day, (v) => `day ${v}`, (d) => `${d} d`, 1],
-  ['SOR at cut-off', (x) => x.sorAtCut, fmt.n2, fmt.n2, -1],
-  ['Cycle NPV', (x) => x.npv, fmt.lakh, fmt.lakh, 1],
-  ['Gross fluid', (x) => x.now.gross, (v) => `${fmt.n1(v)} bbl/d`, fmt.n1, 1],
+  ['Minimum Float Margin Index', (x) => x.fmiMin.fmi, fmt.n2, fmt.n2, 1],
+  ['Economic cut-off day', (x) => x.cut.day, (v) => `day ${v}`, (d) => `${d} d`, 1],
+  ['Steam-Oil Ratio (SOR) at cut-off', (x) => x.sorAtCut, fmt.n2, fmt.n2, -1],
+  ['Cycle Net Present Value (NPV)', (x) => x.npv, fmt.lakh, fmt.lakh, 1],
+  ['Gross fluid rate', (x) => x.now.gross, (v) => `${fmt.n1(v)} bbl/d`, fmt.n1, 1],
 ];
 const spLabel = (x) => `SPM ${x.spm.toFixed(1)} · downstroke ${fmt.pct(x.down)}`;
 
@@ -153,42 +153,42 @@ function ControlCard({ ctx }) {
   const where = ps.fmiMin.z ? `at ${ps.fmiMin.z} m` : 'at the top of the string';
 
   return (
-    <Card tour="controls" title="Try a setpoint" icon={SlidersHorizontal} className="lg:col-span-2"
-      right={<span className="text-xs text-ink-3">preview is free · Apply is logged</span>}>
+    <Card tour="controls" title="Setpoint Evaluation" icon={SlidersHorizontal} className="lg:col-span-2"
+      right={<span className="text-xs text-ink-3">Previews are not recorded; applied setpoints are logged</span>}>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <Slider label="Strokes per minute" value={p.spm} min={2} max={9} step={0.1} onChange={(spm) => move({ spm })} display={p.spm.toFixed(1)} />
           <Slider label="Downstroke speed" value={p.down} min={0.7} max={1} step={0.05} onChange={(down) => move({ down })} display={fmt.pct(p.down)} />
           <p className="text-sm">
             <b className="num">{spLabel(p)}</b>
-            {changed && <span className="ml-2 rounded bg-brand-50 px-1.5 py-px text-[11px] font-medium text-brand-700">preview</span>}
+            {changed && <span className="ml-2 rounded bg-brand-50 px-1.5 py-px text-[11px] font-medium text-brand-700">Preview</span>}
           </p>
           {verdict.binding ? (
             <p role="status" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              <b>{changed ? 'Blocked' : 'Live setpoint outside the envelope'}: {verdict.binding}</b> — {verdict.binding.startsWith('FMI') ? `the rods would float ${where}` : 'the gearbox would exceed its torque rating'}.
-              {' '}The envelope would clamp this to <b className="num">SPM {verdict.applied.spm.toFixed(1)}</b>.
+              <b>{changed ? 'Rejected' : 'Current setpoint outside the safety envelope'}: {verdict.binding}</b>. {verdict.binding.startsWith('FMI') ? `The rod string would float ${where}` : 'The gearbox would exceed its torque rating'}.
+              {' '}The safety envelope would limit this to <b className="num">SPM {verdict.applied.spm.toFixed(1)}</b>.
             </p>
           ) : (
-            <p role="status" className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700"><ShieldCheck size={15} /> Within safety envelope</p>
+            <p role="status" className="mt-3 flex items-center gap-1.5 text-sm text-emerald-700"><ShieldCheck size={15} /> Within the safety envelope</p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button onClick={() => Promise.resolve(ctx.submit(p)).then(setResult)} disabled={!changed} className="btn-primary disabled:opacity-40">
-              <ShieldCheck size={15} /> Apply through envelope
+              <ShieldCheck size={15} /> Apply via Safety Envelope
             </button>
             <button onClick={() => move(live)} disabled={!changed} className="btn-ghost disabled:opacity-40"><RotateCcw size={14} /> Reset</button>
             <button onClick={() => move({ spm: s.mpc.spm, down: s.mpc.down })} disabled={s.mpc.infeasible || (p.spm === s.mpc.spm && p.down === s.mpc.down)} className="btn-ghost disabled:opacity-40">
-              Use optimizer's setpoint
+              Use Optimizer Setpoint
             </button>
           </div>
           <p className="mt-2 text-xs text-ink-3">
             {s.mpc.infeasible
-              ? 'The optimizer finds no setpoint inside every hard constraint for this well today.'
-              : <>Optimizer: <span className="num">{spLabel(s.mpc)}</span>. It maximises the next 48 h of profit inside every hard constraint (float, fillage, torque, fatigue), not whole-cycle NPV.</>}
+              ? 'The optimizer found no setpoint that satisfies every hard constraint for this well today.'
+              : <>Model Predictive Control (MPC) optimizer: <span className="num">{spLabel(s.mpc)}</span>. It maximises profit over the next 48 hours within all hard constraints (rod float, pump fillage, gearbox torque, rod fatigue); it does not optimise whole-cycle NPV.</>}
           </p>
           {result && (
             <p className="mt-2 text-sm text-ink-2">
-              {result.binding ? <>Clamped to <b className="num">{spLabel(result.applied)}</b> ({result.binding}).</> : <>Accepted. <b className="num">{spLabel(result.applied)}</b> is now live.</>}
-              {' '}<button onClick={() => ctx.go('SrpControl')} className="font-medium text-brand-600 hover:underline">See the envelope log</button>
+              {result.binding ? <>Clamped to <b className="num">{spLabel(result.applied)}</b> ({result.binding}).</> : <>Accepted. <b className="num">{spLabel(result.applied)}</b> is now the active setpoint.</>}
+              {' '}<button onClick={() => ctx.go('SrpControl')} className="font-medium text-brand-600 hover:underline">View the safety envelope log</button>
             </p>
           )}
         </div>
@@ -205,12 +205,12 @@ function ControlCard({ ctx }) {
                     {changed && <span className="text-ink-3">{show(a)} → </span>}
                     <b>{show(b)}</b>
                     {changed && (flat
-                      ? <span className="ml-2 text-xs text-ink-3">no change</span>
+                      ? <span className="ml-2 text-xs text-ink-3">No change</span>
                       : <span className={`ml-2 text-xs font-semibold ${good ? 'text-emerald-700' : 'text-red-600'}`}>{d > 0 ? '▲ +' : '▼ −'}{showD(Math.abs(d))}</span>)}
                   </dd>
                 </div>
-                {label === 'Gross fluid' && ps.now.fillage < 1 && (
-                  <p className="mt-0.5 text-right text-[11px] text-amber-700">pump fillage limited — extra speed adds load, not fluid</p>
+                {label === 'Gross fluid rate' && ps.now.fillage < 1 && (
+                  <p className="mt-0.5 text-right text-[11px] text-amber-700">Limited by pump fillage: additional speed increases load, not fluid rate</p>
                 )}
               </div>
             );
@@ -224,7 +224,7 @@ function ControlCard({ ctx }) {
 function EconomicsCard({ s }) {
   const atCut = s.rows[s.cut.day];
   return (
-    <Card title="Cycle economics" icon={Gauge}>
+    <Card title="Cycle Economics" icon={Gauge}>
       <div className="flex items-center gap-5">
         <div className="grid h-28 w-28 shrink-0 place-items-center rounded-full bg-viz-pink text-white">
           <div className="text-center">
@@ -233,12 +233,12 @@ function EconomicsCard({ s }) {
           </div>
         </div>
         <div className="text-sm text-ink-2">
-          Steam–oil ratio falls to <b className="text-ink num">{s.sorAtCut.toFixed(2)}</b> by the computed cut-off on day <b className="text-ink num">{s.cut.day}</b> ± {s.cut.band}.
+          The Steam-Oil Ratio (SOR) falls to <b className="text-ink num">{s.sorAtCut.toFixed(2)}</b> by the computed economic cut-off on day <b className="text-ink num">{s.cut.day}</b> ± {s.cut.band}.
         </div>
       </div>
       <div className="mt-5 space-y-4">
         <div>
-          <div className="mb-1.5 flex justify-between text-sm"><span className="text-ink-2">Cumulative oil</span><span className="num font-semibold">{fmt.n0(s.now.cumOil)} <span className="font-normal text-ink-3">/ {fmt.n0(atCut.cumOil)} bbl</span></span></div>
+          <div className="mb-1.5 flex justify-between text-sm"><span className="text-ink-2">Cumulative oil production</span><span className="num font-semibold">{fmt.n0(s.now.cumOil)} <span className="font-normal text-ink-3">/ {fmt.n0(atCut.cumOil)} bbl</span></span></div>
           <Bar value={s.now.cumOil} max={atCut.cumOil} color={VIZ.pink} />
         </div>
         <div>
@@ -246,7 +246,7 @@ function EconomicsCard({ s }) {
           <Bar value={1} color={VIZ.purple} />
         </div>
         <div className="flex justify-between border-t border-line pt-3 text-sm">
-          <span className="text-ink-2">Cycle NPV at cut-off</span>
+          <span className="text-ink-2">Cycle Net Present Value (NPV) at cut-off</span>
           <span className="num font-semibold">{fmt.lakh(s.npv)}</span>
         </div>
       </div>
@@ -255,25 +255,25 @@ function EconomicsCard({ s }) {
 }
 
 function EnthalpyCard({ s, r }) {
-  const [basis, setBasis] = useState('Now');
-  const row = basis === 'Now' ? r : s.rows[s.cut.day];
+  const [basis, setBasis] = useState('Current');
+  const row = basis === 'Current' ? r : s.rows[s.cut.day];
   const E = s.steam * 2.33; // GJ
   const retained = Math.max(0, (row.Tbar - FIELD.T_R) / (FIELD.T_s - FIELD.T_R));
   const produced = Math.min(row.delta, 1 - retained);
   const parts = [
     { name: 'Retained in heated zone', v: retained, color: VIZ.pink },
     { name: 'Carried off by produced fluid (δ)', v: produced * 0.85, color: VIZ.lightGreen },
-    { name: 'Conduction to over/underburden', v: Math.max(0, 1 - retained - produced), color: VIZ.orange },
+    { name: 'Conduction to overburden and underburden', v: Math.max(0, 1 - retained - produced), color: VIZ.orange },
     { name: 'Wellbore loss (Ramey)', v: produced * 0.15, color: VIZ.yellow },
   ];
   return (
     <Card
-      title="Injected enthalpy"
+      title="Injected Enthalpy Balance"
       icon={Flame}
       right={
         <select value={basis} onChange={(e) => setBasis(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1 text-xs" aria-label="Energy basis">
-          <option>Now</option>
-          <option>At cut-off</option>
+          <option>Current</option>
+          <option>At economic cut-off</option>
         </select>
       }
     >
@@ -287,7 +287,7 @@ function EnthalpyCard({ s, r }) {
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-sm text-ink-2"><b className="text-ink num">{fmt.n0(E)} GJ</b> injected. Balance closes by construction; field closure check runs on enthalpy meters.</p>
+        <p className="text-sm text-ink-2"><b className="text-ink num">{fmt.n0(E)} GJ</b> injected. The balance closes by construction; in the field, closure is verified against enthalpy meters.</p>
       </div>
       <ul className="mt-4 space-y-3">
         {parts.map((p) => (
@@ -313,12 +313,12 @@ function TrajectoryCard({ s }) {
   );
   const markers = (yAxisId) => (
     <>
-      <ReferenceLine yAxisId={yAxisId} x={s.day} stroke="#16161D" strokeDasharray="2 3" label={{ value: 'today', position: 'insideTopLeft', fontSize: 11, fill: '#5B5B6B' }} />
-      <ReferenceLine yAxisId={yAxisId} x={s.cut.day} stroke={VIZ.purple} strokeDasharray="4 3" label={{ value: 'cut-off', position: 'insideTopRight', fontSize: 11, fill: VIZ.purple }} />
+      <ReferenceLine yAxisId={yAxisId} x={s.day} stroke="#16161D" strokeDasharray="2 3" label={{ value: 'Today', position: 'insideTopLeft', fontSize: 11, fill: '#5B5B6B' }} />
+      <ReferenceLine yAxisId={yAxisId} x={s.cut.day} stroke={VIZ.purple} strokeDasharray="4 3" label={{ value: 'Economic cut-off', position: 'insideTopRight', fontSize: 11, fill: VIZ.purple }} />
     </>
   );
   return (
-    <Card title="Cycle trajectory — the coupling over time" icon={Activity} right={<Legend items={[['T_pump °C', VIZ.orange], ['μ cP', VIZ.pink], ['FMI', VIZ.purple], ['projection', '#8C8C9A', true]]} />}>
+    <Card title="Cycle Trajectory: Coupling Over Time" icon={Activity} right={<Legend items={[['T_pump °C', VIZ.orange], ['μ cP', VIZ.pink], ['FMI', VIZ.purple], ['Projection', '#8C8C9A', true]]} />}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="h-56">
           <ResponsiveContainer>
@@ -329,10 +329,10 @@ function TrajectoryCard({ s }) {
               <YAxis yAxisId="mu" orientation="right" {...AXIS} width={44} />
               <Tooltip formatter={(v) => (v == null ? '—' : fmt.n0(v))} labelFormatter={(l) => `Production day ${l}`} />
               {markers('t')}
-              <Line yAxisId="t" dataKey="TpH" name="Pump temp °C" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="t" dataKey="TpP" name="Pump temp (proj.)" stroke={VIZ.orange} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
+              <Line yAxisId="t" dataKey="TpH" name="Pump temperature °C" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="t" dataKey="TpP" name="Pump temperature (projected)" stroke={VIZ.orange} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
               <Line yAxisId="mu" dataKey="muH" name="μ cP" stroke={VIZ.pink} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="mu" dataKey="muP" name="μ (proj.)" stroke={VIZ.pink} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
+              <Line yAxisId="mu" dataKey="muP" name="μ (projected)" stroke={VIZ.pink} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -346,7 +346,7 @@ function TrajectoryCard({ s }) {
               <ReferenceLine y={FIELD.fmiLimit} stroke="#DC2626" strokeDasharray="4 3" label={{ value: 'FMI limit 0.15', position: 'insideBottomLeft', fontSize: 11, fill: '#DC2626' }} />
               {markers(0)}
               <Line dataKey="fmiH" name="FMI" stroke={VIZ.purple} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line dataKey="fmiP" name="FMI (proj. at setpoint)" stroke={VIZ.purple} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
+              <Line dataKey="fmiP" name="FMI (projected at setpoint)" stroke={VIZ.purple} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -358,14 +358,14 @@ function TrajectoryCard({ s }) {
 function statusOf(st) {
   if (st.fmiMin.fmi <= FIELD.fmiLimit) return ['crit', 'Rod float risk'];
   if (st.now.fillage < FIELD.fillageLimit) return ['warn', 'Fluid pound risk'];
-  if (st.cut.day - st.day <= 7) return ['warn', 'Cut-off near'];
-  return ['ok', 'In envelope'];
+  if (st.cut.day - st.day <= 7) return ['warn', 'Cut-off approaching'];
+  return ['ok', 'Within envelope'];
 }
 
 function WellsTable({ ctx }) {
   const [q, setQ] = useState('');
   const rows = ctx.fleet.filter((st) => st.well.id.toLowerCase().includes(q.toLowerCase()));
-  const cols = ['Well', 'Cycle · day', 'T_pump °C', 'μ pump cP', 'Min FMI', 'SPM set / MPC', 'Fillage', 'SOR to date', 'Cut-off day', 'Status'];
+  const cols = ['Well', 'Cycle · Day', 'T_pump °C', 'μ at pump cP', 'Minimum FMI', 'SPM setpoint / MPC', 'Pump fillage', 'SOR to date', 'Cut-off day', 'Status'];
   const cells = (st) => [st.well.id, `${st.well.cycle} · ${st.day}`, fmt.n0(st.now.Tpump), fmt.n0(st.now.mu), fmt.n2(st.fmiMin.fmi), `${st.sp.spm.toFixed(1)} / ${st.mpc.spm.toFixed(1)}`, fmt.pct(st.now.fillage), st.sor.toFixed(1), st.cut.day, statusOf(st)[1]];
 
   const exportCsv = () => {
@@ -387,7 +387,7 @@ function WellsTable({ ctx }) {
             <Search size={15} className="text-ink-3" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search wells" className="w-32 outline-none placeholder:text-ink-3" />
           </label>
-          <button onClick={exportCsv} className="btn-primary"><Download size={15} /> Export</button>
+          <button onClick={exportCsv} className="btn-primary"><Download size={15} /> Export CSV</button>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -434,10 +434,10 @@ function FleetTab({ ctx }) {
   const pts = ctx.fleet.map((st) => ({ id: st.well.id, mu: st.now.mu, fmi: st.fmiMin.fmi, oil: st.now.oil, fill: st.well.hue }));
   return (
     <div className="space-y-6">
-      <Card title="Operating envelope across the field" icon={ShieldAlert} right={<span className="text-xs text-ink-3">bubble size = oil rate</span>}>
+      <Card title="Field-Wide Operating Envelope" icon={ShieldAlert} right={<span className="text-xs text-ink-3">Bubble size: oil rate</span>}>
         <p className="mb-4 max-w-3xl text-sm text-ink-2">
-          Every well sits somewhere on the same physics: as μ({sub("T_pump")}) climbs through the cycle, float margin falls unless SPM or downstroke speed comes down.
-          Wells below the red line need action now.
+          All wells follow the same physics: as μ({sub("T_pump")}) rises through the cycle, the Float Margin Index falls unless strokes per minute or downstroke speed is reduced.
+          Wells below the red line require immediate action.
         </p>
         <div className="h-80">
           <ResponsiveContainer>

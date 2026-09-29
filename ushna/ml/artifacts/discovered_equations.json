@@ -2,8 +2,8 @@
   "viscosity_law": {
     "equation": "mu(T, asp) = 0.95 * (10^(10^(7.079 - 2.583*log10(T) + 0.0069*asp^0.96)) - 0.7)",
     "latex": "\\mu(T, \\text{asp}) = 0.95 \\cdot \\left[ 10^{10^{7.079 - 2.583\\log_{10}(T) + 0.0069 \\cdot \\text{asp}^{0.96}}} - 0.7 \\right]",
-    "r2_score": 0.9999858573140272,
-    "rmse": 105.93098445746126,
+    "r2_score": 0.9999858573140273,
+    "rmse": 105.93098445738694,
     "signoff": "Fixed-form fit: viscosity data fits modified Walther law with R^2 = 1.0000. Asphaltene sensitivity exponent = 0.96."
   },
   "soak_efficiency": {

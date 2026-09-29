@@ -1,0 +1,7 @@
+# Vercel function (api/main.py): the twin over HTTP. Only what ushna.twin and the API import;
+# numba, the MQTT bridge and torch are not on this path. Docker uses requirements-api.txt.
+numpy>=1.24.0
+scipy>=1.10.0
+fastapi>=0.103.0
+pydantic>=2.4.0
+psycopg[binary]>=3.1

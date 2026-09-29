@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from api.models import Health, Recommendation, Setpoint, State, SubmitResult, TraceRow, Well
+from api._models import Health, Recommendation, Setpoint, State, SubmitResult, TraceRow, Well
 from ushna import twin
 from ushna.data.db_writer import writer_from_env
 
@@ -54,6 +54,15 @@ app.add_middleware(
     allow_origins=os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(','),
     allow_methods=['*'], allow_headers=['*'],
 )
+
+
+@app.middleware('http')
+async def strip_api_prefix(request, call_next):
+    """On Vercel the dashboard calls /api/...; serve the same routes as the edge container."""
+    path = request.scope['path']
+    if path == '/api' or path.startswith('/api/'):
+        request.scope['path'] = path[4:] or '/'
+    return await call_next(request)
 
 
 def _well(well_id):

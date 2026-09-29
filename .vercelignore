@@ -1,14 +1,13 @@
-# Vercel serves only the static dashboard (frontend/). Without these, Vercel would turn
-# api/*.py into Python functions and install requirements.txt (torch), failing the build.
+# Vercel serves the static dashboard (frontend/) plus one Python function, api/main.py,
+# which installs api/requirements.txt. The root requirements (torch) and pyproject stay out.
 # Keep ushna/ml/artifacts/*.json: the dashboard imports them at build time.
-/api
 /tests
 /datasets
 /db
 /docker
 /docs
+/venv
 Dockerfile
 docker-compose.yml
-requirements*.txt
+/requirements*.txt
 pyproject.toml
-*.py

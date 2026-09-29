@@ -5,13 +5,13 @@ import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt, Toggl
 import { FIELD } from '../data/twin';
 import { markClass } from '../data/history';
 
-export const CSS_TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest'];
+export const CSS_TABS = ['Economic Cut-off (Optimal Stopping)', 'Cycle Design (Bayesian Optimization)', 'Counterfactual Backtest'];
 
 export default function CssDesign({ ctx }) {
   const { cssTab: tab, setCssTab: setTab } = ctx;
   return (
     <>
-      <PageHeader title="CSS design & cut-off" subtitle="When to stop producing and steam the well again, and how much steam to use next time." tabs={CSS_TABS} tab={tab} onTab={setTab} />
+      <PageHeader title="Cyclic Steam Stimulation (CSS) Design & Economic Cut-off" subtitle="When to end production and re-inject steam, and the steam volume and soak time for the next cycle." tabs={CSS_TABS} tab={tab} onTab={setTab} />
       {tab === CSS_TABS[0] && <Cutoff s={ctx.s} />}
       {tab === CSS_TABS[1] && <Design ctx={ctx} />}
       {tab === CSS_TABS[2] && <Backtest well={ctx.well} design={ctx.design} history={ctx.history} />}
@@ -24,7 +24,7 @@ function Cutoff({ s }) {
   const star = s.cut.piStar / 1000;
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Card title="Profit rate π(t) vs fresh-cycle average π̄*" icon={Timer} className="lg:col-span-2" right={<Legend items={[['π(t)', VIZ.pink], ['π̄*', VIZ.purple, true]]} />}>
+      <Card title="Daily Profit Rate π(t) Compared with New-Cycle Average π̄*" icon={Timer} className="lg:col-span-2" right={<Legend items={[['π(t)', VIZ.pink], ['π̄*', VIZ.purple, true]]} />}>
         <div className="h-72">
           <ResponsiveContainer>
             <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -33,27 +33,27 @@ function Cutoff({ s }) {
               <YAxis {...AXIS} width={52} unit="k" />
               <Tooltip formatter={(v) => `₹${fmt.n0(v)}k/day`} labelFormatter={(l) => `Production day ${l}`} />
               <ReferenceLine y={star} stroke={VIZ.purple} strokeDasharray="5 4" />
-              <ReferenceLine x={s.day} stroke="#16161D" strokeDasharray="2 3" label={{ value: 'today', position: 'insideTopLeft', fontSize: 11 }} />
+              <ReferenceLine x={s.day} stroke="#16161D" strokeDasharray="2 3" label={{ value: 'Today', position: 'insideTopLeft', fontSize: 11 }} />
               <ReferenceLine x={s.cut.day - s.cut.band} stroke="#D9CCFF" />
               <ReferenceLine x={s.cut.day + s.cut.band} stroke="#D9CCFF" />
               <Line dataKey="pi" stroke={VIZ.pink} strokeWidth={2} dot={false} isAnimationActive={false} />
-              <ReferenceDot x={s.cut.day} y={star} r={6} fill={VIZ.purple} stroke="#fff" label={{ value: `stop: day ${s.cut.day}`, position: 'top', fontSize: 12, fill: VIZ.purple }} />
+              <ReferenceDot x={s.cut.day} y={star} r={6} fill={VIZ.purple} stroke="#fff" label={{ value: `Cut-off: day ${s.cut.day}`, position: 'top', fontSize: 12, fill: VIZ.purple }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
-          <div className="text-[15px] text-ink">Stop producing and re-inject when <Tex>{String.raw`\pi(t) \le \bar{\pi}^{*}`}</Tex></div>
-          <p className="mt-1 text-xs text-ink-2">Keep producing only while this well earns more than the average of starting a new cycle, counting injection cost and soak downtime. π(t) falls steadily as T̄ drops, so there is a single crossing point.</p>
+          <div className="text-[15px] text-ink">End production and re-inject steam when <Tex>{String.raw`\pi(t) \le \bar{\pi}^{*}`}</Tex></div>
+          <p className="mt-1 text-xs text-ink-2">Continue production only while this well earns more than the average return of a new cycle, including injection cost and soak downtime. π(t) declines steadily as T̄ falls, so there is a single crossing point.</p>
         </div>
       </Card>
-      <Card tour="cutoff" title="Decision" icon={Timer}>
-        <StatRow label="Cut-off day" value={`${s.cut.day} ± ${s.cut.band}`} />
+      <Card tour="cutoff" title="Cut-off Decision" icon={Timer}>
+        <StatRow label="Economic cut-off day" value={`${s.cut.day} ± ${s.cut.band}`} />
         <StatRow label="Days remaining" value={Math.max(0, s.cut.day - s.day)} />
-        <StatRow label="π(t) today" value={`₹${fmt.n0(s.now.profit)}`} unit="/day" />
-        <StatRow label="π̄* (fresh cycle)" value={`₹${fmt.n0(s.cut.piStar)}`} unit="/day" />
-        <StatRow label="SOR at cut-off" value={fmt.n2(s.sorAtCut)} />
-        <StatRow label="Cycle NPV at cut-off" value={fmt.lakh(s.npv)} />
-        <p className="mt-3 text-xs text-ink-3">Recomputed daily from oil price (₹{fmt.n0(FIELD.oilPrice)}/bbl), steam cost (₹{fmt.n0(FIELD.steamCost)}/t) and the EnKF reservoir parameters. The band comes from kh ±10%.</p>
+        <StatRow label="Current profit rate π(t)" value={`₹${fmt.n0(s.now.profit)}`} unit="/day" />
+        <StatRow label="New-cycle average π̄*" value={`₹${fmt.n0(s.cut.piStar)}`} unit="/day" />
+        <StatRow label="Steam-Oil Ratio (SOR) at cut-off" value={fmt.n2(s.sorAtCut)} />
+        <StatRow label="Cycle Net Present Value (NPV) at cut-off" value={fmt.lakh(s.npv)} />
+        <p className="mt-3 text-xs text-ink-3">Recomputed daily from the oil price (₹{fmt.n0(FIELD.oilPrice)}/bbl), steam cost (₹{fmt.n0(FIELD.steamCost)}/t) and the Ensemble Kalman Filter (EnKF) reservoir parameters. The uncertainty band reflects kh ±10%.</p>
       </Card>
     </div>
   );
@@ -72,7 +72,7 @@ function Design({ ctx }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card
-        title="Posterior over (steam volume, soak time)" icon={Grid3x3} className="lg:col-span-2"
+        title="Posterior over Steam Volume and Soak Time" icon={Grid3x3} className="lg:col-span-2"
         right={<Toggle options={['NPV', 'SOR']} value={metric} onChange={setMetric} />}
       >
         <div className="overflow-x-auto">
@@ -102,31 +102,31 @@ function Design({ ctx }) {
               {design.steams.map((st) => <div key={st} className="pt-1 text-center text-[10px] text-ink-3 num">{st / 1000}k</div>)}
             </div>
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-ink-2">
-              <span>x: steam volume (t) · y: soak time</span>
-              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded ring-2 ring-ink" /> posterior optimum</span>
-              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded ring-2 ring-viz-orange" /> current design</span>
-              <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-ink/60" /> physics-model call ({design.calls})</span>
-              <span>darker = better {metric}</span>
-              <span className="text-amber-700">synthetic · physics-generated</span>
+              <span>Horizontal axis: steam volume (t) · Vertical axis: soak time</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded ring-2 ring-ink" /> Posterior optimum</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded ring-2 ring-viz-orange" /> Current design</span>
+              <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-ink/60" /> Physics-model evaluation ({design.calls})</span>
+              <span>Darker shading indicates better {metric}</span>
+              <span className="text-amber-700">Synthetic, physics-generated</span>
             </div>
           </div>
         </div>
         <div className="mt-4">
-          <Eq note="Subject to formation fracture pressure, boiler capacity, casing/cement thermal limits and minimum cycle economics.">
+          <Eq note="Subject to formation fracture pressure, boiler capacity, casing and cement thermal limits, and minimum cycle economics.">
             {String.raw`\max_{V_s,\ t_{soak}}\ \mathrm{NPV} = \sum_{t} \frac{R_o\,q_o(t) - C_{steam}\,V_s - C_{energy}\,E(t) - C_{fail}\,\lambda(t)}{(1+r)^{t}}`}
           </Eq>
         </div>
       </Card>
-      <Card title={`Cycle ${well.cycle + 1} proposal`} icon={Grid3x3}>
+      <Card title={`Cycle ${well.cycle + 1} Proposed Design`} icon={Grid3x3}>
         <StatRow label="Steam volume" value={fmt.n0(design.best.steam)} unit="t" />
         <StatRow label="Soak time" value={design.best.soak} unit="d" />
-        <StatRow label="Projected cut-off" value={`day ${design.best.cutDay}`} />
-        <StatRow label="Cycle NPV" value={fmt.lakh(design.best.npv)} />
-        <StatRow label="Cycle SOR" value={fmt.n2(design.best.sor)} />
+        <StatRow label="Projected economic cut-off" value={`day ${design.best.cutDay}`} />
+        <StatRow label="Cycle Net Present Value (NPV)" value={fmt.lakh(design.best.npv)} />
+        <StatRow label="Cycle Steam-Oil Ratio (SOR)" value={fmt.n2(design.best.sor)} />
         <div className="my-3 border-t border-line" />
         <StatRow label="Current design NPV" value={fmt.lakh(design.current.npv)} />
-        <StatRow label="Uplift" value={`${Math.round((design.best.npv / design.current.npv - 1) * 100)}%`} tone="ok" />
-        <p className="mt-3 text-xs text-ink-3">A GP surrogate seeded with a physics prior converges in about {design.calls} simulator calls. The posterior also shows where in the design space the recommendation is confident.</p>
+        <StatRow label="Improvement" value={`${Math.round((design.best.npv / design.current.npv - 1) * 100)}%`} tone="ok" />
+        <p className="mt-3 text-xs text-ink-3">A Gaussian Process surrogate initialised with a physics prior converges in about {design.calls} simulator evaluations. The posterior also indicates where in the design space the recommendation is reliable.</p>
       </Card>
     </div>
   );
@@ -154,12 +154,12 @@ function Backtest({ well, design, history }) {
   return (
     <div className="space-y-4">
       <p className="max-w-3xl text-sm text-ink-2">
-        Run the optimizer over {well.id}'s past cycles and compare what it would have recommended with what was actually done.
+        The optimizer is applied to {well.id}'s past cycles, and its recommendations are compared with actual practice.
         Over {well.cycle} cycles: SOR −{Math.round((1 - sum('uSor') / sum('hSor')) * 100)}%, energy per barrel −{Math.round((1 - sum('uE') / sum('hE')) * 100)}%, rod failures {sum('hF')} → {sum('uF')}.
       </p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {charts.map(([title, h, u, f]) => (
-          <Card key={title} title={title} icon={History} right={<Legend items={[['historical', VIZ.grey], ['USHNA', VIZ.pink]]} />}>
+          <Card key={title} title={title} icon={History} right={<Legend items={[['Historical', VIZ.grey], ['USHNA', VIZ.pink]]} />}>
             <div className="h-56">
               <ResponsiveContainer>
                 <BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }} barGap={2}>
@@ -175,7 +175,7 @@ function Backtest({ well, design, history }) {
           </Card>
         ))}
       </div>
-      <p className="text-xs text-ink-3">Illustrative backtest on synthetic cycle history. Validation protocol: leave-one-cycle-out history matching, an energy-balance closure audit, and card-reconstruction error on held-out cards.</p>
+      <p className="text-xs text-ink-3">Illustrative backtest on synthetic cycle history. Validation protocol: leave-one-cycle-out history matching, an energy-balance closure audit, and dynamometer-card reconstruction error on held-out cards.</p>
     </div>
   );
 }
@@ -193,13 +193,13 @@ function UploadedBacktest({ well, design, history, recs }) {
   return (
     <div className="space-y-4">
       <p className="max-w-3xl text-sm text-ink-2">
-        {well.id}'s uploaded history: {recs.length} cycle{recs.length > 1 ? 's' : ''} at an average SOR of {avg.toFixed(2)}.
-        The twin's NPV-optimal design for this well ({fmt.n0(design.best.steam)} t steam, {design.best.soak} d soak) runs at SOR {design.best.sor.toFixed(2)}
+        {well.id} uploaded history: {recs.length} cycle{recs.length > 1 ? 's' : ''} at an average SOR of {avg.toFixed(2)}.
+        The digital twin's NPV-optimal design for this well ({fmt.n0(design.best.steam)} t steam, {design.best.soak} d soak) runs at SOR {design.best.sor.toFixed(2)}
         {design.best.sor < avg ? `, ${Math.round((1 - design.best.sor / avg) * 100)}% lower.` : '.'}
       </p>
       <div className={`grid grid-cols-1 gap-4 lg:grid-cols-3 ${markClass(history)}`}>
         {charts.map(([title, h, u, f]) => (
-          <Card key={title} title={title} icon={History} right={<Legend items={u ? [['historical', VIZ.grey], ['USHNA', VIZ.pink]] : [['historical', VIZ.grey]]} />}>
+          <Card key={title} title={title} icon={History} right={<Legend items={u ? [['Historical', VIZ.grey], ['USHNA', VIZ.pink]] : [['Historical', VIZ.grey]]} />}>
             {data.some((d) => d[h] != null) ? (
               <div className="h-56">
                 <ResponsiveContainer>
@@ -219,8 +219,8 @@ function UploadedBacktest({ well, design, history, recs }) {
       </div>
       <p className="text-xs text-ink-3">
         Historical: {history.file}{history.sample && ' (synthetic sample)'}, imported {new Date(history.at).toLocaleDateString('en-IN')}.
-        USHNA: SOR of the twin's NPV-optimal cycle design; it maximises NPV, so its SOR can sit above history.
-        Energy and rod failures: the twin's per-cycle counterfactual is not modelled yet, so only history is shown.
+        USHNA: SOR of the digital twin's NPV-optimal cycle design; because it maximises NPV, its SOR can exceed the historical value.
+        Energy and rod failures: the per-cycle counterfactual is not yet modelled, so only historical values are shown.
       </p>
     </div>
   );

@@ -60,8 +60,8 @@ function fitWalther(mu50, rho) {
   return { A: y(mu50) + B * x1, B };
 }
 export const WALTHER = fitWalther(11500, FIELD.rho); // A ≈ 7.039, B ≈ 2.562
-export function viscosity(tC) {
-  const ll = WALTHER.A - WALTHER.B * log10(tC + 273.15);
+export function viscosity(tC, w = WALTHER) { // w: a well's own Walther fit (Model Test), else the field's
+  const ll = w.A - w.B * log10(tC + 273.15);
   return (10 ** (10 ** ll) - 0.7) * FIELD.rho; // cP
 }
 
@@ -82,14 +82,14 @@ export function heatedRadius(steamT, day = FIELD.tInj, tInj = FIELD.tInj) {
 
 // ── Ramey: tubing fluid temperature above the pump ──
 const DZ = 20;
-export function tubingProfile(Tpump, gross) {
+export function tubingProfile(Tpump, gross, walther) {
   const L = FIELD.pumpDepth, Ar = 900 + 6 * gross; // relaxation distance grows with rate
   const Tg = (z) => FIELD.T_surf + FIELD.gradGeo * z;
   const out = [];
   for (let z = 0; z <= L; z += DZ) {
     const e = Math.exp(-(L - z) / Ar);
     const T = Tg(z) + FIELD.gradGeo * Ar * (1 - e) + (Tpump - Tg(L)) * e;
-    out.push({ z, T, Tgeo: Tg(z), mu: viscosity(T) });
+    out.push({ z, T, Tgeo: Tg(z), mu: viscosity(T, walther) });
   }
   return out;
 }
@@ -170,7 +170,7 @@ export function simulate(well, { setpoint, fromDay = 0, withFmi = true, design }
   const eta = 1 - Math.exp(-soak / 2.5);                 // soak redistribution efficiency
   const rh = heatedRadius(steam) * (0.75 + 0.25 * eta);
   const soakLoss = 0.012 * soak;                         // conduction during shut-in
-  const muC = viscosity(FIELD.T_R);
+  const muC = viscosity(FIELD.T_R, well.walther);
   const rows = [];
   let delta = soakLoss, cumOil = 0, cumGross = 0;
   for (let p = 0; p <= FIELD.horizon; p++) {
@@ -181,7 +181,7 @@ export function simulate(well, { setpoint, fromDay = 0, withFmi = true, design }
     const fHD = 1 / (1 + 5 * tDr), fVD = 1 / Math.sqrt(1 + 5 * tDv);
     const Tbar = FIELD.T_R + (FIELD.T_s - FIELD.T_R) * fHD * fVD * Math.max(0, 1 - delta);
     const Tpump = FIELD.T_R + (Tbar - FIELD.T_R) * 0.9;
-    const muH = viscosity(Tbar), mu = viscosity(Tpump);
+    const muH = viscosity(Tbar, well.walther), mu = viscosity(Tpump, well.walther);
     const inflow = (J * well.kh) / (muH * (Math.log(rh / FIELD.rw) + well.skin) + muC * Math.log(FIELD.re / rh));
     const disp = displacement(sp.spm);
     const gross = Math.min(inflow, disp * 0.97);
@@ -190,7 +190,7 @@ export function simulate(well, { setpoint, fromDay = 0, withFmi = true, design }
     cumOil += oil; cumGross += gross;
     const row = { p, Tbar, Tpump, muH, mu, inflow, gross, oil, fillage, cumOil, delta, rh, spm: sp.spm, down: sp.down, waterCut: waterCut(p) };
     if (withFmi) {
-      const prof = tubingProfile(Tpump, gross);
+      const prof = tubingProfile(Tpump, gross, well.walther);
       const fmiRows = fmiProfile(prof, sp.spm, sp.down);
       const m = minBy(fmiRows, 'fmi');
       const L = loads(fmiRows, sp.spm, sp.down, gross);
@@ -317,14 +317,14 @@ export function recommendations(s, design) {
     const lower = m.spm < sp.spm;
     const lifeX = (s.loads.goodman / after.goodman) ** 6;
     recs.push({
-      id: 'mpc', kind: 'MPC · SRP', priority: s.fmiMin.fmi < FIELD.fmiLimit + 0.03 ? 'high' : 'medium',
+      id: 'mpc', kind: 'Model Predictive Control · Sucker Rod Pump', priority: s.fmiMin.fmi < FIELD.fmiLimit + 0.03 ? 'high' : 'medium',
       title: `${lower ? 'Reduce' : 'Raise'} SPM ${f1(sp.spm)} → ${f1(m.spm)}; downstroke velocity ${downChange >= 0 ? '−' : '+'}${Math.abs(downChange)}%`,
       why: s.fmiMin.fmi < FIELD.fmiLimit
         ? `Float Margin Index ${s.fmiMin.z ? `at ${s.fmiMin.z} m` : 'at the top of the rod string'} has fallen to ${f2(s.fmiMin.fmi)}, below the 0.15 operating limit.`
         : lower
           ? `Pump fillage ${Math.round(now.fillage * 100)}% and FMI ${f2(s.fmiMin.fmi)} at ${s.fmiMin.z} m are both closing on their limits within the ${2 * 24} h Ramey lag.`
           : `FMI ${f2(s.fmiMin.fmi)} leaves unused margin; the hot, thin fluid can be lifted faster without float.`,
-      driver: `Pump-intake temperature ${f0(ago.Tpump)} °C → ${f0(now.Tpump)} °C over the last 96 hours; μ ${ago.mu < now.mu ? 'risen' : 'fallen'} ${f0(ago.mu)} → ${f0(now.mu)} cP.`,
+      driver: `Pump-intake temperature ${f0(ago.Tpump)} °C → ${f0(now.Tpump)} °C over the last 96 hours; viscosity has ${ago.mu < now.mu ? 'risen' : 'fallen'} from ${f0(ago.mu)} to ${f0(now.mu)} cP.`,
       relation: String.raw`(S\cdot N)_{\max} \propto \frac{1}{\mu(T_{pump})}\quad\text{(annular viscous drag vs. buoyed rod weight)}`,
       effect: `${pct(after.gross, now.gross)} gross fluid; ${pct(after.dragDown, s.loads.dragDown)} peak downstroke drag; rod fatigue life ×${f1(Math.min(lifeX, 9.9))}; FMI → ${f2(after.fmi)}.`,
       confidence: `${Math.round(92 - muSigma / 40)}%. EnKF posterior on μ: ±${muSigma} cP.`,
@@ -335,10 +335,10 @@ export function recommendations(s, design) {
 
   if (cut.day - s.day <= 25) {
     recs.push({
-      id: 'cutoff', kind: 'Optimal stopping', priority: cut.day - s.day <= 7 ? 'high' : 'medium',
+      id: 'cutoff', kind: 'Optimal Stopping', priority: cut.day - s.day <= 7 ? 'high' : 'medium',
       title: `Schedule re-injection for day ${cut.day}`,
-      why: `Profit rate π(t) = ₹${f0(now.profit)}/d is projected to cross the fresh-cycle average π̄* = ₹${f0(cut.piStar)}/d at day ${cut.day}.`,
-      driver: `Heated-zone T̄ ${f0(ago.Tbar)} → ${f0(now.Tbar)} °C in 4 days; δ (heat carried off by produced fluid) now ${f2(now.delta)}.`,
+      why: `Profit rate π(t) = ₹${f0(now.profit)}/d is projected to fall below the new-cycle average π̄* = ₹${f0(cut.piStar)}/d at day ${cut.day}.`,
+      driver: `Heated-zone T̄ ${f0(ago.Tbar)} → ${f0(now.Tbar)} °C in 4 days; δ (heat removed by produced fluid) is now ${f2(now.delta)}.`,
       relation: String.raw`\text{Re-inject when }\ \pi(t) \le \bar{\pi}^{*}\quad\text{(renewal-reward process)}`,
       effect: `Cycle-average profit ₹${f0(cut.piStar)}/d vs ₹${f0(cut.rateToHorizon)}/d if run to day ${FIELD.horizon} (${pct(cut.piStar, cut.rateToHorizon)}); SOR at cut-off ${f2(s.sorAtCut)}.`,
       confidence: `${80 - cut.band * 2}%. Band from EnKF kh ±10%: day ${cut.day - cut.band}–${cut.day + cut.band}.`,
@@ -348,9 +348,9 @@ export function recommendations(s, design) {
 
   if (design) {
     recs.push({
-      id: 'bo', kind: 'Bayesian optimization · CSS', priority: 'low',
+      id: 'bo', kind: 'Bayesian Optimization · Cyclic Steam', priority: 'low',
       title: `Cycle ${well.cycle + 1}: ${f0(design.best.steam)} t steam, ${design.best.soak} d soak`,
-      why: `Posterior NPV maximum over ${design.calls} physics-model calls; current design (${f0(well.steam)} t, ${well.soak} d) sits ${Math.round((1 - design.current.npv / design.best.npv) * 100)}% below it.`,
+      why: `Posterior NPV maximum over ${design.calls} physics-model evaluations; the current design (${f0(well.steam)} t, ${well.soak} d) is ${Math.round((1 - design.current.npv / design.best.npv) * 100)}% below it.`,
       driver: `EnKF updates this cycle: kh ×${f2(well.kh)}, skin ${f1(well.skin)}, heat-loss coefficient ×${f2(well.heatLoss)}.`,
       relation: String.raw`\max_{V_s,\ t_{soak}} \mathrm{NPV} = \sum_t \frac{R\,q_o - C_{steam}V_s - C_{energy}E - C_{fail}\lambda}{(1+r)^t}`,
       effect: `NPV ₹${f1(design.best.npv / 1e5)} L vs ₹${f1(design.current.npv / 1e5)} L; SOR ${f2(design.best.sor)} vs ${f2(design.current.sor)}.`,
@@ -361,10 +361,10 @@ export function recommendations(s, design) {
 
   if (well.skin > 3) {
     recs.push({
-      id: 'skin', kind: 'EnKF diagnostic', priority: 'low',
+      id: 'skin', kind: 'EnKF Diagnostic', priority: 'low',
       title: 'Plan near-wellbore solvent treatment before next injection',
       why: `Skin posterior has drifted 1.6 → ${f1(well.skin)} over ${well.cycle} cycles, outside its prior band.`,
-      driver: 'Monotonic skin rise with Tpump below asphaltene onset (58 °C) for long tails of each cycle.',
+      driver: 'Skin has risen monotonically while the pump-intake temperature remains below the asphaltene onset (58 °C) during the late stage of each cycle.',
       relation: String.raw`q_o = \frac{2\pi k\,k_{ro}\,h\,\Delta P}{\mu_h\left[\ln(r_h/r_w) + s\right] + \mu_c\ln(r_e/r_h)}`,
       effect: `Restoring s to 1.6 raises current inflow ${pct(inflowAt(s, 1.6), now.inflow)} at today's temperatures.`,
       confidence: '74%. Skin posterior ±0.6 (1σ).',
@@ -374,10 +374,10 @@ export function recommendations(s, design) {
 
   // First-pass classifier screen (Section 5.5): no governing relation until the inverse solve confirms it.
   recs.push({
-    id: 'gbm', kind: 'Classifier screen', priority: 'low',
-    title: 'Possible gas interference on last 12 cards',
-    why: 'Gradient-boosted screen flagged card shape.', driver: 'Card area −8%.', relation: '',
-    effect: 'Unknown until inverse solve.', confidence: '61%.', cycle,
+    id: 'gbm', kind: 'Classifier Screen', priority: 'low',
+    title: 'Possible gas interference in the last 12 dynamometer cards',
+    why: 'The gradient-boosted classifier flagged the card shape.', driver: 'Card area −8%.', relation: '',
+    effect: 'To be determined by the inverse card solution.', confidence: '61%.', cycle,
   });
   return recs;
 }
@@ -397,9 +397,12 @@ function inflowAt(s, skin) {
 }
 
 // ── CSS design space for Bayesian optimization (evaluated grid = GP posterior mean stand-in) ──
-export function designSpace(well) {
-  const steams = [1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4250, 4500];
-  const soaks = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+// Steam grid: 250 t steps from 1,500 t up to the boiler capacity (4,500 t by default → 13 volumes).
+export const designSteams = (maxSteam = 4500) => Array.from({ length: Math.floor((maxSteam - 1500) / 250) + 1 }, (_, i) => 1500 + 250 * i);
+export const DESIGN_SOAKS = [2, 3, 4, 5, 6, 7, 8, 9, 10]; // days
+export function designSpace(well, { maxSteam } = {}) { // maxSteam: boiler capacity, t
+  const steams = designSteams(maxSteam);
+  const soaks = DESIGN_SOAKS;
   const grid = [];
   for (const soak of soaks) for (const steam of steams) {
     const rows = simulate(well, { withFmi: false, design: { steam, soak } }).rows;

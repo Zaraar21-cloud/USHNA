@@ -12,19 +12,19 @@ import { CSS_TABS } from '../pages/CssDesign';
 // Ordered by the story a first-time visitor follows, not by architecture.
 const NAV = [
   { id: 'Overview', label: 'Dashboard', icon: LayoutGrid },
-  { group: 'Well twin', icon: Flame, items: [
-    { id: 'Reservoir', label: 'Reservoir & CSS' },
+  { group: 'Well Digital Twin', icon: Flame, items: [
+    { id: 'Reservoir', label: 'Reservoir & Cyclic Steam' },
     { id: 'Wellbore', label: 'Wellbore' },
-    { id: 'RodString', label: 'Rod string' },
+    { id: 'RodString', label: 'Rod String' },
   ] },
   { id: 'Learning', label: 'Learning Layers', icon: Brain },
-  { group: 'Decisions', icon: Sparkles, items: [
+  { group: 'Decision Support', icon: Sparkles, items: [
     { id: 'Recommendations', label: 'Recommendations' },
-    { id: 'SrpControl', label: 'SRP control' },
-    { id: 'CssDesign', label: 'CSS design' },
+    { id: 'SrpControl', label: 'Sucker Rod Pump Control' },
+    { id: 'CssDesign', label: 'Cyclic Steam Design' },
   ] },
-  { group: 'Under the hood', icon: Wrench, items: [
-    { id: 'Telemetry', label: 'Edge telemetry' },
+  { group: 'Data & Audit', icon: Wrench, items: [
+    { id: 'Telemetry', label: 'Edge Telemetry' },
     { id: 'Traceability', label: 'Traceability' },
   ] },
 ];
@@ -32,29 +32,29 @@ const NAV = [
 const n0 = (x) => Math.round(x).toLocaleString('en-IN');
 // Ordered by the architecture diagram (Traceability page), so each step's layer badge maps to a box on the slide.
 const TOUR = [
-  { layer: 'Observation layer', page: 'Telemetry', target: 'telemetry', title: 'The data coming in',
-    text: () => 'The twin runs on what the pad already records: SCADA, VFD, surface dynamometer, wellhead pressures and steam flow. This is a simulated polished-rod vibration stream; spikes flag rod impact. It also ingests the pad\'s historical cycle records: upload a spreadsheet or PDF below, or try the sample.' },
-  { layer: 'Physics core · reservoir', page: 'Reservoir', target: 'thermal', title: 'The problem',
-    text: ({ s }) => `After each steam job the heated zone cools. Oil at the pump thickens from ${n0(s.rows[0].mu)} cP on day 0 to ${n0(s.rows[s.cut.day].mu)} cP by the cut-off on day ${s.cut.day}.` },
-  { layer: 'Physics core · wellbore', page: 'Wellbore', target: 'ramey', title: 'The coupling',
-    text: () => `Physics computes the viscosity at the pump, ${FIELD.pumpDepth} m down. No sensor can measure it; the twin infers it from temperature.` },
-  { layer: 'Physics core · rod string', page: 'RodString', target: 'fmi', title: 'The risk',
-    text: () => 'The Float Margin Index falls toward 0.15 as the oil thickens. Below that the rods cannot fall fast enough on the downstroke: they float, buckle and break.' },
-  { layer: 'Self-calibration', page: 'Learning', tab: 'EnKF assimilation', target: 'enkf', title: 'The twin keeps itself honest',
-    text: () => `Every day an ensemble Kalman filter re-estimates the well's hidden physics from temperature and rate. In ${AI.enkf.days} days it cut the uncertainty on permeability-thickness by ${Math.round(AI.enkf.collapse)}%, so the twin matches its own well, not a textbook one.` },
-  { layer: 'ML acceleration', page: 'Learning', tab: 'PINN surrogate', target: 'pinn', title: 'A physics-informed neural network',
-    text: () => `A neural network trained on the heat equation plus sparse sensor data learned how the heated zone cools. On steam designs it never saw it is within ${AI.pinn.rmse.toFixed(1)} °C of the full solver, ${Math.round(AI.pinn.speedup)}× faster, and it passed an energy-conservation audit before the optimizer may use it.`,
-    more: 'Two more learning components sit in this tab: a Gaussian-process residual that finds what the physics missed, and symbolic regression that proposes printable field laws, viscosity among them.' },
-  { layer: 'Optimization layer', page: 'CssDesign', target: 'cutoff', title: 'Designing the steam cycle',
-    text: ({ s, design }) => `${s.well.id} should re-steam around day ${s.cut.day}, when a day's profit drops below the average of a fresh cycle. For the next cycle an NPV search over steam volume and soak picks ${n0(design.best.steam)} t and ${design.best.soak} days (Cycle design tab).` },
-  { layer: 'Optimization layer', page: 'Recommendations', target: 'rec', title: 'The decision',
-    text: () => 'The controller cuts pumping speed before the limit is reached. Every card shows the governing equation, the numbers behind it and a confidence.' },
-  { layer: 'Safety envelope', page: 'Overview', target: 'controls', title: 'Try to break it',
-    text: () => 'Drag SPM to 9 and watch the Float Margin Index go negative. The envelope blocks it before anything reaches the well.' },
-  { layer: 'Safety envelope', page: 'SrpControl', target: 'envelope', title: 'The veto, on the record',
-    text: () => 'Every setpoint, from the optimizer or a person, passes this rule-based envelope. Unsafe requests are clamped, and every veto is logged here with the constraint that bound it.' },
-  { layer: 'Closed loop', end: true, title: 'Every number has a paper trail',
-    text: () => 'Every setpoint you just saw is logged with its equation, its inputs and who approved it. That record is the Traceability page: open it and check any number on this site back to the line of physics that produced it.' },
+  { layer: 'Observation layer', page: 'Telemetry', target: 'telemetry', title: 'Data Acquisition',
+    text: () => 'The digital twin uses data the well pad already records: Supervisory Control and Data Acquisition (SCADA), Variable Frequency Drive (VFD), surface dynamometer, wellhead pressure and steam flow. Shown here is a simulated polished-rod vibration stream, in which spikes indicate rod impact. The twin also ingests the pad\'s historical cycle records: upload a spreadsheet or PDF below, or load the sample file.' },
+  { layer: 'Physics core · reservoir', page: 'Reservoir', target: 'thermal', title: 'Problem Statement: Heated-Zone Cooling',
+    text: ({ s }) => `After each steam injection the heated zone cools. Crude viscosity at the pump rises from ${n0(s.rows[0].mu)} cP on day 0 to ${n0(s.rows[s.cut.day].mu)} cP by the economic cut-off on day ${s.cut.day}.` },
+  { layer: 'Physics core · wellbore', page: 'Wellbore', target: 'ramey', title: 'Thermal–Mechanical Coupling',
+    text: () => `The physics model computes crude viscosity at the pump, ${FIELD.pumpDepth} m below surface. No sensor measures it directly; the digital twin infers it from temperature.` },
+  { layer: 'Physics core · rod string', page: 'RodString', target: 'fmi', title: 'Rod Float Risk',
+    text: () => 'The Float Margin Index (FMI) falls toward its 0.15 limit as crude viscosity rises. Below that limit the rods cannot descend fast enough on the downstroke; they float, buckle and eventually fail.' },
+  { layer: 'Self-calibration', page: 'Learning', tab: 'Ensemble Kalman Filter', target: 'enkf', title: 'Self-Calibration by Data Assimilation',
+    text: () => `Each day an Ensemble Kalman Filter (EnKF) re-estimates the well's unobserved reservoir parameters from temperature and rate data. Over ${AI.enkf.days} days it reduced the uncertainty in permeability-thickness by ${Math.round(AI.enkf.collapse)}%, so the twin represents this specific well rather than a generic one.` },
+  { layer: 'Machine learning acceleration', page: 'Learning', tab: 'Physics-Informed Neural Network', target: 'pinn', title: 'Physics-Informed Neural Network Surrogate',
+    text: () => `A Physics-Informed Neural Network (PINN), trained on the heat equation and sparse sensor data, models how the heated zone cools. On steam designs excluded from training it is within ${AI.pinn.rmse.toFixed(1)} °C of the full solver and ${Math.round(AI.pinn.speedup)}× faster, and it passed an energy-conservation audit before being released to the optimizer.`,
+    more: 'This section also contains a Gaussian Process residual model, which quantifies effects the physics does not capture, and symbolic regression, which proposes closed-form field correlations, including one for viscosity.' },
+  { layer: 'Optimization layer', page: 'CssDesign', target: 'cutoff', title: 'Steam Cycle Design',
+    text: ({ s, design }) => `${s.well.id} should be re-injected with steam around day ${s.cut.day}, when daily profit falls below the average of a new cycle. For the next cycle, a Net Present Value (NPV) search over steam volume and soak time selects ${n0(design.best.steam)} t and ${design.best.soak} days (Cycle Design tab).` },
+  { layer: 'Optimization layer', page: 'Recommendations', target: 'rec', title: 'Operational Recommendations',
+    text: () => 'The controller reduces pumping speed before the limit is reached. Each recommendation states its governing equation, the supporting values and a confidence level.' },
+  { layer: 'Safety envelope', page: 'Overview', target: 'controls', title: 'Safety Envelope Demonstration',
+    text: () => 'Set strokes per minute (SPM) to 9 and observe the Float Margin Index become negative. The safety envelope rejects the setpoint before it reaches the well.' },
+  { layer: 'Safety envelope', page: 'SrpControl', target: 'envelope', title: 'Setpoint Audit Log',
+    text: () => 'Every setpoint, whether from the optimizer or an operator, passes through this rule-based safety envelope. Unsafe requests are limited, and each intervention is logged with the constraint that triggered it.' },
+  { layer: 'Closed loop', end: true, title: 'End-to-End Traceability',
+    text: () => 'Every setpoint shown in this tour is logged with its equation, its inputs and its approver. The Traceability page holds that record: any value on this site can be traced back to the physics that produced it.' },
 ];
 
 // Where the numbers come from: the in-browser twin (default, works as a static site) or the FastAPI edge service.
@@ -68,10 +68,10 @@ function SourceToggle({ ctx, className = '' }) {
   return (
     <div
       className={`${className} items-center gap-0.5 rounded-full p-0.5 text-xs font-medium ring-1 ${ctx.apiError ? 'ring-red-300' : 'ring-line'}`}
-      title={ctx.apiError ? `API unreachable (${ctx.apiError}); showing local physics` : 'Data source: local physics in the browser, or the FastAPI edge service'}
+      title={ctx.apiError ? `Edge service unreachable (${ctx.apiError}); showing in-browser results` : 'Data source: physics computed in the browser, or the FastAPI edge service'}
     >
-      {opt('local', 'Local')}
-      {opt('api', ctx.apiError ? 'API ⚠' : 'API')}
+      {opt('local', 'Browser')}
+      {opt('api', ctx.apiError ? 'Edge API ⚠' : 'Edge API')}
     </div>
   );
 }
@@ -110,10 +110,10 @@ function Popover({ button, children, align = 'left', width = 'w-72' }) {
 function alertsFor(fleet) {
   const out = [];
   for (const st of fleet) {
-    if (st.fmiMin.fmi <= FIELD.fmiLimit) out.push({ tone: 'crit', well: st.well.id, text: `FMI ${st.fmiMin.fmi.toFixed(2)} below 0.15 — rod float risk` });
-    if (st.now.fillage < FIELD.fillageLimit) out.push({ tone: 'warn', well: st.well.id, text: `Pump fillage ${Math.round(st.now.fillage * 100)}% < 85% — fluid pound risk` });
-    if (st.cut.day - st.day <= 7 && st.cut.day >= st.day) out.push({ tone: 'warn', well: st.well.id, text: `Cut-off in ${st.cut.day - st.day} d — book boiler` });
-    if (st.asphaltene) out.push({ tone: 'info', well: st.well.id, text: `T_pump ${Math.round(st.now.Tpump)} °C below asphaltene onset` });
+    if (st.fmiMin.fmi <= FIELD.fmiLimit) out.push({ tone: 'crit', well: st.well.id, text: `Float Margin Index ${st.fmiMin.fmi.toFixed(2)} below the 0.15 limit: rod float risk` });
+    if (st.now.fillage < FIELD.fillageLimit) out.push({ tone: 'warn', well: st.well.id, text: `Pump fillage ${Math.round(st.now.fillage * 100)}% below 85%: fluid pound risk` });
+    if (st.cut.day - st.day <= 7 && st.cut.day >= st.day) out.push({ tone: 'warn', well: st.well.id, text: `Economic cut-off in ${st.cut.day - st.day} days: schedule the boiler` });
+    if (st.asphaltene) out.push({ tone: 'info', well: st.well.id, text: `T_pump ${Math.round(st.now.Tpump)} °C, below the asphaltene onset temperature` });
   }
   return out;
 }
@@ -136,7 +136,7 @@ export default function Shell({ page, go, ctx, children }) {
   useEffect(() => {
     if (about !== 'welcome') return;
     ctx.setPace(0.5);
-    ctx.runCycle();
+    ctx.runCycle({ stay: true }); // stays on the Dashboard behind the modal
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
 
   // Tour: navigate to the step's page, then spotlight its panel.
@@ -206,7 +206,7 @@ export default function Shell({ page, go, ctx, children }) {
           <Popover
             width="w-80"
             button={({ toggle, open }) => (
-              <button onClick={toggle} aria-expanded={open} className={`${PILL} rounded-r-full px-3 hover:bg-canvas`} title="Scrub the production cycle">
+              <button onClick={toggle} aria-expanded={open} className={`${PILL} rounded-r-full px-3 hover:bg-canvas`} title="Select a production day">
                 <span className="font-semibold num">Day {day}</span>
                 <span className="text-ink-3">· cut-off {s.cut.day}</span>
                 <span className="h-1.5 w-16 rounded-full bg-[#F1F1F5]">
@@ -218,15 +218,15 @@ export default function Shell({ page, go, ctx, children }) {
           >
             {() => (
               <div className="p-1">
-                <p className="text-sm font-semibold">Scrub the production cycle</p>
-                <p className="mt-1 text-xs text-ink-2">Every page recomputes from the physics chain as the heated zone cools.</p>
+                <p className="text-sm font-semibold">Production Day Selector</p>
+                <p className="mt-1 text-xs text-ink-2">All pages recompute from the physics model as the heated zone cools.</p>
                 <input
                   type="range" min={0} max={FIELD.horizon} value={day}
                   onChange={(e) => ctx.setDay(+e.target.value)}
                   className="mt-4 w-full accent-brand-500" aria-label="Production day"
                 />
                 <div className="mt-1 flex justify-between text-xs text-ink-3 num"><span>day 0</span><span>day {FIELD.horizon}</span></div>
-                <button onClick={ctx.resetDay} className="mt-3 text-xs font-medium text-brand-600 hover:underline">Back to live (day {well.day})</button>
+                <button onClick={ctx.resetDay} className="mt-3 text-xs font-medium text-brand-600 hover:underline">Return to current day (day {well.day})</button>
               </div>
             )}
           </Popover>
@@ -239,7 +239,7 @@ export default function Shell({ page, go, ctx, children }) {
           <button onClick={startTour} className={`${PILL} w-9 justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600 sm:w-auto sm:px-3.5`} aria-label="Start the guided tour, about 2 minutes">
             <Compass size={16} />
             <span className="hidden sm:inline xl:hidden">Tour</span>
-            <span className="hidden xl:inline">Guided tour · 2 min</span>
+            <span className="hidden xl:inline">Guided Tour (2 min)</span>
           </button>
           <Popover
             align="right" width="w-80"
@@ -252,7 +252,7 @@ export default function Shell({ page, go, ctx, children }) {
           >
             {(close) => (
               <div>
-                <p className="px-1 pb-2 text-sm font-semibold">Fleet alerts</p>
+                <p className="px-1 pb-2 text-sm font-semibold">Fleet Alerts</p>
                 <ul className="max-h-80 overflow-y-auto">
                   {alerts.map((a, i) => (
                     <li key={i}>
@@ -289,14 +289,14 @@ export default function Shell({ page, go, ctx, children }) {
               <NavItem key={n.id} n={n} active={page === n.id} go={() => { go(n.id); setMobileNav(false); }} />
             )))}
           </nav>
-          <button onClick={() => setAbout(true)} className="px-5 py-4 text-left text-[11px] text-ink-3 hover:text-ink-2">Synthetic wells · 6 of 35 modelled · about this data</button>
+          <button onClick={() => setAbout(true)} className="px-5 py-4 text-left text-[11px] text-ink-3 hover:text-ink-2">Synthetic data: 6 of 35 wells modelled · Data sources</button>
         </aside>
 
         <main className={`min-w-0 flex-1 bg-white ${step || tips ? 'pb-72' : ''}`}>{/* room to scroll the last card above the bottom panel */}
           <div className="mx-auto max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8">{children}</div>
           <footer className="border-t border-line px-4 py-5 text-center text-[11px] text-ink-3 lg:px-8">
             Prototype for SIH PS 26120 (Oil India Limited). All values come from the USHNA physics model running on synthetic data and are not operational advice.
-            Every setpoint shown traces to a governing equation — see <button onClick={() => go('Traceability')} className="underline">Traceability</button>.
+            Every setpoint shown traces to a governing equation; see <button onClick={() => go('Traceability')} className="underline">Traceability</button>.
           </footer>
         </main>
       </div>
@@ -332,13 +332,13 @@ const PILL = 'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap te
 
 function RunButton({ ctx, className = '', iconOnly }) {
   const paused = !ctx.playing && ctx.demoT != null && ctx.demoT < FIELD.horizon;
-  const label = ctx.playing ? 'Pause' : paused ? 'Resume' : 'Run cycle';
+  const label = ctx.playing ? 'Pause' : paused ? 'Resume' : 'Run Cycle';
   return (
     <button
       onClick={ctx.runCycle}
       className={`${PILL} ${className}`}
       aria-label={ctx.playing ? 'Pause the demo cycle' : `${label} demo: steam injection, soak, then production day 0 to ${FIELD.horizon}`}
-      title={ctx.playing ? 'Pause' : 'Demo: a full steam cycle, time-compressed to ~20 s'}
+      title={ctx.playing ? 'Pause' : 'Demonstration: a full steam cycle, time-compressed to about 20 seconds'}
     >
       {ctx.playing ? <Pause size={15} className="text-brand-600" /> : <Play size={15} className="fill-brand-500 text-brand-500" />}
       {!iconOnly && <span className="hidden xl:inline">{label}</span>}
@@ -355,28 +355,28 @@ function cyclePhase(t, s) {
     const d = t + tInj + soak + 1;
     return {
       name: 'Steam injection', color: '#F2549B', steam: true, well: 'Injecting', pump: 'Off',
-      text: `Steam at ${FIELD.T_s} °C is pumped down the well to heat the thick oil around it. No oil is produced yet.`,
-      stats: [['Steam injected', `${n0(well.steam * d / tInj)} / ${n0(well.steam)} t`], ['Heated radius', `${heatedRadius(well.steam, d).toFixed(1)} m`], ['Injection day', `${d} of ${tInj}`]],
+      text: `Steam at ${FIELD.T_s} °C is injected down the well to heat the surrounding heavy crude. No oil is produced during injection.`,
+      stats: [['Steam injected', `${n0(well.steam * d / tInj)} / ${n0(well.steam)} t`], ['Heated-zone radius', `${heatedRadius(well.steam, d).toFixed(1)} m`], ['Injection day', `${d} of ${tInj}`]],
     };
   }
   if (t < 0) {
     return {
-      name: 'Soak', color: '#F59E42', steam: false, well: 'Shut in', pump: 'Off',
-      text: 'Steam is off and the well is closed. Heat spreads from the steam into the oil so it thins enough to flow.',
-      stats: [['Soak day', `${t + soak + 1} of ${soak}`], ['Cold oil', `${n0(viscosity(FIELD.T_R))} cP`], ['Heated oil', `${n0(s.rows[0].muH)} cP`]],
+      name: 'Soak (Shut-in)', color: '#F59E42', steam: false, well: 'Shut in', pump: 'Off',
+      text: 'Steam injection has stopped and the well is shut in. Heat transfers from the steam into the crude, reducing its viscosity enough to flow.',
+      stats: [['Soak day', `${t + soak + 1} of ${soak}`], ['Unheated crude viscosity', `${n0(viscosity(FIELD.T_R))} cP`], ['Heated crude viscosity', `${n0(s.rows[0].muH)} cP`]],
     };
   }
-  const stats = [['Oil rate', `${n0(now.oil)} bbl/d`], ['Oil temp. at pump', `${Math.round(now.Tpump)} °C`], ['Oil viscosity', `${n0(now.mu)} cP`],
-    ['Rod float margin', `${s.fmiMin.fmi.toFixed(2)} (limit ${FIELD.fmiLimit})`], ['Oil produced', `${n0(now.cumOil)} bbl`], ['Economic cut-off', `day ${cut.day}`]];
+  const stats = [['Oil rate', `${n0(now.oil)} bbl/d`], ['Oil temperature at pump', `${Math.round(now.Tpump)} °C`], ['Oil viscosity', `${n0(now.mu)} cP`],
+    ['Float Margin Index', `${s.fmiMin.fmi.toFixed(2)} (limit ${FIELD.fmiLimit})`], ['Oil produced', `${n0(now.cumOil)} bbl`], ['Economic cut-off', `day ${cut.day}`]];
   const base = { steam: false, well: 'Producing', pump: `${s.sp.spm.toFixed(1)} SPM`, stats };
-  if (t >= FIELD.horizon) return { ...base, name: 'Demo complete', color: '#8C8C9A',
-    text: `Re-steaming on day ${cut.day} gives the best average profit per day. Running on to day ${FIELD.horizon} only pumps cooler, thicker oil.` };
-  if (t > cut.day) return { ...base, name: 'Past cut-off: re-steam', color: '#8C8C9A',
-    text: 'The heat is spent. Each day now earns less than a fresh steam cycle would, so the twin recommends re-injecting.' };
-  if (cut.day - t <= 7) return { ...base, name: 'Nearing cut-off', color: '#F5C542',
-    text: `Profit is falling toward the cut-off on day ${cut.day}. Book the boiler for the next steam job.` };
-  return { ...base, name: 'Oil production', color: '#3FB16B',
-    text: 'The pump lifts hot, thinned oil. As the heated zone cools the oil thickens, so the controller slows the pump to keep the rods from floating.' };
+  if (t >= FIELD.horizon) return { ...base, name: 'Demonstration Complete', color: '#8C8C9A',
+    text: `Re-injecting steam on day ${cut.day} gives the highest average daily profit. Continuing to day ${FIELD.horizon} only produces cooler, more viscous crude.` };
+  if (t > cut.day) return { ...base, name: 'Past Economic Cut-off: Re-inject Steam', color: '#8C8C9A',
+    text: 'The heated zone is depleted. Each further production day earns less than a new steam cycle would, so the digital twin recommends re-injection.' };
+  if (cut.day - t <= 7) return { ...base, name: 'Approaching Economic Cut-off', color: '#F5C542',
+    text: `Daily profit is declining toward the economic cut-off on day ${cut.day}. Schedule the boiler for the next steam injection.` };
+  return { ...base, name: 'Oil Production', color: '#3FB16B',
+    text: 'The pump lifts heated, lower-viscosity crude. As the heated zone cools, viscosity rises, so the controller reduces pump speed to prevent rod float.' };
 }
 
 const PACES = [0.25, 0.5, 1, 2];
@@ -401,10 +401,10 @@ function CyclePanel({ ctx }) {
   return (
     <div role="status" aria-live="polite" className="card fixed left-1/2 top-[4.5rem] z-40 w-[min(27rem,calc(100vw-2rem))] -translate-x-1/2 p-4 shadow-xl">
       <div className="flex items-center gap-2 text-xs text-ink-3">
-        <span className="rounded bg-amber-100 px-1.5 py-px text-[10px] font-bold tracking-wide text-amber-900">DEMO RUN</span>
+        <span className="rounded bg-amber-100 px-1.5 py-px text-[10px] font-bold tracking-wide text-amber-900">DEMONSTRATION</span>
         <span>{well.id} · cycle {well.cycle} · time-compressed</span>
         {!playing && t < FIELD.horizon && <span className="font-medium text-ink-2">· paused</span>}
-        <button onClick={() => ctx.setDemoOpen(false)} className="ml-auto text-ink-3 hover:text-ink" aria-label="Minimise demo panel" title="Minimise (the demo keeps running)"><X size={16} /></button>
+        <button onClick={() => ctx.setDemoOpen(false)} className="ml-auto text-ink-3 hover:text-ink" aria-label="Minimise demonstration panel" title="Minimise (the demonstration continues)"><X size={16} /></button>
       </div>
       <div className="mt-3 flex items-baseline gap-2">
         <span className={`h-2.5 w-2.5 shrink-0 self-center rounded-full ${playing ? 'animate-pulse' : ''}`} style={{ background: ph.color }} />
@@ -424,7 +424,7 @@ function CyclePanel({ ctx }) {
         ))}
       </div>
       <div className="mt-3 flex gap-1.5">
-        {chip(ph.steam, 'Steam in', ph.steam ? 'Yes' : 'No')}
+        {chip(ph.steam, 'Steam injection', ph.steam ? 'On' : 'Off')}
         {chip(ph.well === 'Producing', 'Well', ph.well)}
         {chip(ph.pump !== 'Off', 'Pump', ph.pump)}
       </div>
@@ -438,7 +438,7 @@ function CyclePanel({ ctx }) {
           {playing ? <Pause size={13} /> : done ? <RotateCcw size={13} /> : <Play size={13} className="fill-current" />}
           {playing ? 'Pause' : done ? 'Replay' : 'Resume'}
         </button>
-        <span className="ml-auto text-xs text-ink-3">Pace</span>
+        <span className="ml-auto text-xs text-ink-3">Playback speed</span>
         <Toggle options={PACES.map((p) => `${p}×`)} value={`${ctx.pace}×`} onChange={(o) => ctx.setPace(parseFloat(o))} />
         <span className="w-full text-right text-[10px] text-ink-3 num">
           {(FIELD.horizon / 15) * ctx.pace} production days per second
@@ -584,7 +584,7 @@ function AboutData({ ctx, editable, onClose, onStart, onTour }) {
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
           {editable
             ? <span>Values with a <Pencil size={10} className="inline" /> feed the physics model (it uses each range's midpoint).</span>
-            : <span>Want to stress-test the model? Reopen this from the SYNTHETIC DATA badge to edit these values.</span>}
+            : <span>To test the model with different parameters, reopen this dialog from the SYNTHETIC DATA badge and edit these values.</span>}
           {CALIBRATION.some((c) => !same(draft[c.key], c.range)) && (
             <button onClick={() => setDraft(calibDefaults())} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
               <RotateCcw size={11} /> Reset to published values
@@ -592,19 +592,19 @@ function AboutData({ ctx, editable, onClose, onStart, onTour }) {
           )}
         </div>
         <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <p className="rounded-xl bg-emerald-50 p-3 text-emerald-900"><b>What is real:</b> the equations, the coupling, the solver, the trained AI models, the safety logic.</p>
-          <p className="rounded-xl bg-amber-50 p-3 text-amber-900"><b>What is synthetic:</b> the six wells (of 35 in the field) and their sensor streams.</p>
+          <p className="rounded-xl bg-emerald-50 p-3 text-emerald-900"><b>Genuine components:</b> the governing equations, the physical coupling, the solver, the trained machine learning models and the safety logic.</p>
+          <p className="rounded-xl bg-amber-50 p-3 text-amber-900"><b>Synthetic components:</b> the six modelled wells (of 35 in the field) and their sensor data streams.</p>
         </div>
-        <p className="mt-4 text-sm font-medium">Connected to a live SCADA feed, only the data source changes. The model does not.</p>
+        <p className="mt-4 text-sm font-medium">When connected to a live Supervisory Control and Data Acquisition (SCADA) feed, only the data source changes; the model remains the same.</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <button autoFocus onClick={() => leave(onTour)} className="btn-primary"><Compass size={15} /> Guided tour (2 min)</button>
-          <button onClick={() => leave(onStart)} className="btn-ghost">Explore on my own</button>
+          <button autoFocus onClick={() => leave(onTour)} className="btn-primary"><Compass size={15} /> Guided Tour (2 min)</button>
+          <button onClick={() => leave(onStart)} className="btn-ghost">Explore Independently</button>
         </div>
       </div>
       {review && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/30 p-4">
           <div role="alertdialog" aria-modal="true" aria-labelledby="review-title" className="card w-full max-w-md p-5 shadow-2xl">
-            <h3 id="review-title" className="text-lg font-bold tracking-tight">Apply your changes?</h3>
+            <h3 id="review-title" className="text-lg font-bold tracking-tight">Apply calibration changes?</h3>
             <p className="mt-1 text-sm text-ink-2">Accepted values recalibrate the physics model and every page recomputes from them.</p>
             <ul className="mt-3 divide-y divide-line text-sm">
               {changes.map((c) => (
@@ -618,7 +618,7 @@ function AboutData({ ctx, editable, onClose, onStart, onTour }) {
               ))}
             </ul>
             <div className="mt-4 flex items-center gap-2">
-              <button onClick={() => setReview(null)} className="mr-auto text-sm text-ink-2 hover:text-ink">Keep editing</button>
+              <button onClick={() => setReview(null)} className="mr-auto text-sm text-ink-2 hover:text-ink">Continue editing</button>
               <button onClick={review} className="btn-ghost">Discard</button>
               <button autoFocus onClick={() => { ctx.acceptCalib(draft); review(); }} className="btn-primary">Accept</button>
             </div>
@@ -650,26 +650,26 @@ function TourPanel({ step, i, n, ctx, onPrev, onNext, onEnd, onClose }) {
       </div>
       {step.end && (
         <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <button onClick={() => onEnd()} className={`${btn} border border-white/30 text-white hover:bg-white/10`}>Explore on my own</button>
-          <button autoFocus onClick={() => onEnd('Traceability')} className={`${btn} bg-white text-ink hover:bg-white/90`}>Open traceability</button>
+          <button onClick={() => onEnd()} className={`${btn} border border-white/30 text-white hover:bg-white/10`}>Explore Independently</button>
+          <button autoFocus onClick={() => onEnd('Traceability')} className={`${btn} bg-white text-ink hover:bg-white/90`}>Open Traceability</button>
         </div>
       )}
     </div>
   );
 }
 
-// After the tour: concrete things to poke at, each one a click away.
+// After the tour: suggested next steps, each one a click away.
 function TourTips({ ctx, go, onClose }) {
   const tips = [
-    ['Run the cycle and watch μ and FMI move together', () => { go('Overview'); if (!ctx.playing) ctx.runCycle(); }],
-    ['Drag SPM to 9 on the Dashboard, apply it, then read the veto log', () => go('Overview')],
-    ['Switch to BGW-11: past its cut-off, already clamped by the float limit', () => { ctx.selectWell('BGW-11'); go('Overview'); }],
-    ['Open Traceability to check any number back to its equation', () => go('Traceability')],
+    ['Run the cycle and observe viscosity and the Float Margin Index change together', () => { go('Overview'); if (!ctx.playing) ctx.runCycle({ stay: true }); }],
+    ['Set SPM to 9 on the Dashboard, apply it, then review the safety envelope log', () => go('Overview')],
+    ['Select BGW-11: past its economic cut-off and already limited by the rod float constraint', () => { ctx.selectWell('BGW-11'); go('Overview'); }],
+    ['Open Traceability to trace any value back to its governing equation', () => go('Traceability')],
   ];
   return (
-    <div role="dialog" aria-label="Things worth trying" className="card fixed inset-x-3 bottom-3 z-50 mx-auto max-w-lg p-4 shadow-2xl">
+    <div role="dialog" aria-label="Suggested next steps" className="card fixed inset-x-3 bottom-3 z-50 mx-auto max-w-lg p-4 shadow-2xl">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Tour complete. Things worth trying:</p>
+        <p className="text-sm font-semibold">Tour complete. Suggested next steps:</p>
         <button onClick={onClose} className="text-ink-3 hover:text-ink" aria-label="Dismiss"><X size={16} /></button>
       </div>
       <ul className="mt-2 space-y-0.5">

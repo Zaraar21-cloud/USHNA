@@ -20,7 +20,7 @@ class Boundary extends React.Component {
   componentDidUpdate(prev) { if (prev.page !== this.props.page && this.state.error) this.setState({ error: null }); }
   render() {
     return this.state.error
-      ? <p className="card p-5 text-sm text-red-700">This view failed to render: {String(this.state.error.message)}</p>
+      ? <p className="card p-5 text-sm text-red-700">This page could not be displayed: {String(this.state.error.message)}</p>
       : this.props.children;
   }
 }
@@ -39,9 +39,9 @@ const clock = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', mi
 const HISTORY_KEY = 'ushna.history';
 
 const SEED_LOG = [
-  { time: '09:12', well: 'BGW-11', requested: 'SPM 5.4 · down 100%', applied: 'SPM 3.5 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
-  { time: '07:40', well: 'BGW-15', requested: 'SPM 5.6 · down 100%', applied: 'SPM 4.4 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
-  { time: '06:05', well: 'BGW-04', requested: 'SPM 7.2 · down 90%', applied: 'SPM 7.2 · down 90%', binding: null, action: 'accepted' },
+  { time: '09:12', well: 'BGW-11', requested: 'SPM 5.4 · downstroke 100%', applied: 'SPM 3.5 · downstroke 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
+  { time: '07:40', well: 'BGW-15', requested: 'SPM 5.6 · downstroke 100%', applied: 'SPM 4.4 · downstroke 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
+  { time: '06:05', well: 'BGW-04', requested: 'SPM 7.2 · downstroke 90%', applied: 'SPM 7.2 · downstroke 90%', binding: null, action: 'accepted' },
 ];
 
 export default function App() {
@@ -120,7 +120,7 @@ export default function App() {
   // In API mode the server's envelope decides (callers await the result either way).
   function record(req, { applied, binding }) {
     setSetpoints((p) => ({ ...p, [wellId]: applied }));
-    const label = (x) => `SPM ${x.spm.toFixed(1)} · down ${Math.round(x.down * 100)}%`;
+    const label = (x) => `SPM ${x.spm.toFixed(1)} · downstroke ${Math.round(x.down * 100)}%`;
     setLog((l) => [{ time: clock(), well: wellId, requested: label(req), applied: label(applied), binding, action: binding ? 'clamped' : 'accepted' }, ...l]);
     return { applied, binding };
   }
@@ -156,8 +156,10 @@ export default function App() {
     setCssTab,
     history,
     setHistory,
-    runCycle: () => {
+    // Start or resume opens the 3D Wellbore view, which follows the cycle; { stay: true } keeps the current page.
+    runCycle: (opts) => {
       if (playing) return setPlaying(false);
+      if (!opts?.stay) go('Wellbore');
       if (demoT != null && demoT < FIELD.horizon) return setPlaying(true); // resume
       setDays((p) => ({ ...p, [wellId]: 0 }));
       setDemoT(-(FIELD.tInj + well.soak));

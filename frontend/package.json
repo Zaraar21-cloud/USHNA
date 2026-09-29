@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "node src/data/twin.check.mjs && node src/data/history.check.mjs",
+    "check": "node src/data/twin.check.mjs && node src/data/history.check.mjs && node src/data/studio.check.mjs",
     "samples": "node scripts/make-samples.mjs"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
+    "three": "^0.170.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {

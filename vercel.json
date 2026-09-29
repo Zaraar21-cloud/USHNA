@@ -3,5 +3,11 @@
   "framework": null,
   "installCommand": "npm ci --prefix frontend",
   "buildCommand": "npm run build --prefix frontend",
-  "outputDirectory": "frontend/dist"
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/main.py": { "excludeFiles": "{frontend/**,ushna/ml/**}" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/main.py" }
+  ]
 }

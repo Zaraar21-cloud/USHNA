@@ -5,8 +5,9 @@ import {
 import { Atom, Sigma, FunctionSquare, Cpu, ShieldCheck, Activity, Brain, Thermometer } from 'lucide-react';
 import { PageHeader, Card, Eq, Tex, Badge, Legend, Status, StatRow, VIZ, AXIS, GRID } from '../components/ui';
 import { pinn, enkf, gp, eqs, AI } from '../data/ml';
+import ModelTest from './ModelTest';
 
-export const LEARN_TABS = ['PINN surrogate', 'EnKF assimilation', 'GP residual', 'Symbolic regression'];
+export const LEARN_TABS = ['Physics-Informed Neural Network', 'Ensemble Kalman Filter', 'Gaussian Process Residual', 'Symbolic Regression', 'Model Test'];
 
 export default function Learning({ ctx }) {
   const tab = ctx.learnTab;
@@ -14,15 +15,16 @@ export default function Learning({ ctx }) {
     <>
       <PageHeader
         title="Learning Layers"
-        subtitle="The AI half of the digital twin: four models that learn from the well's data. Each one is bounded by physics and has to pass a check before the twin trusts it."
+        subtitle="The machine learning component of the digital twin: four models that learn from well data, plus a test bench for the design optimizer. Each model is constrained by physics and must pass a validation gate before the twin uses it."
         tabs={LEARN_TABS} tab={tab} onTab={ctx.setLearnTab}
       />
       <AiStrip active={tab} onPick={ctx.setLearnTab} />
       <div className="mt-6">
-        {tab === 'PINN surrogate' && <Pinn />}
-        {tab === 'EnKF assimilation' && <Enkf />}
-        {tab === 'GP residual' && <Gp />}
-        {tab === 'Symbolic regression' && <Symbolic />}
+        {tab === 'Physics-Informed Neural Network' && <Pinn />}
+        {tab === 'Ensemble Kalman Filter' && <Enkf />}
+        {tab === 'Gaussian Process Residual' && <Gp />}
+        {tab === 'Symbolic Regression' && <Symbolic />}
+        {tab === 'Model Test' && <ModelTest ctx={ctx} />}
       </div>
     </>
   );
@@ -34,15 +36,15 @@ const show = (x) => (Math.abs(x) >= 100 ? Math.round(x).toLocaleString('en-IN') 
 // Four headline tiles: one per model, every number read from ushna/ml/artifacts/.
 export function AiStrip({ active, onPick }) {
   const tiles = [
-    { tab: 'PINN surrogate', icon: Brain, name: 'Physics-informed neural net', value: `${f1(AI.pinn.rmse)} °C`,
-      note: `error on designs it never saw · ${Math.round(AI.pinn.speedup)}× faster than the solver`,
-      badge: AI.pinn.trained ? ['ok', 'Trained · audited'] : ['crit', 'Held back'] },
-    { tab: 'EnKF assimilation', icon: Atom, name: 'Ensemble Kalman filter', value: `−${Math.round(AI.enkf.collapse)}%`,
-      note: `uncertainty on permeability-thickness after ${AI.enkf.days} days of data`, badge: ['info', 'Assimilating'] },
-    { tab: 'GP residual', icon: Sigma, name: 'Gaussian-process residual', value: `${f1(AI.gp.found)}%`,
-      note: `rate loss the physics missed, found by the GP (true ${f1(AI.gp.truth)}%)`, badge: ['info', `Bounded ±${AI.gp.bound}%`] },
-    { tab: 'Symbolic regression', icon: FunctionSquare, name: 'Symbolic regression', value: `${AI.sr.count} laws`,
-      note: `closed-form field correlations, R² ≥ ${AI.sr.minR2.toFixed(3)}`, badge: ['grey', 'For sign-off'] },
+    { tab: 'Physics-Informed Neural Network', icon: Brain, name: 'Physics-Informed Neural Network (PINN)', value: `${f1(AI.pinn.rmse)} °C`,
+      note: `Error on designs excluded from training · ${Math.round(AI.pinn.speedup)}× faster than the solver`,
+      badge: AI.pinn.trained ? ['ok', 'Trained and audited'] : ['crit', 'Withheld'] },
+    { tab: 'Ensemble Kalman Filter', icon: Atom, name: 'Ensemble Kalman Filter (EnKF)', value: `−${Math.round(AI.enkf.collapse)}%`,
+      note: `Reduction in permeability-thickness uncertainty after ${AI.enkf.days} days of data`, badge: ['info', 'Assimilating'] },
+    { tab: 'Gaussian Process Residual', icon: Sigma, name: 'Gaussian Process (GP) Residual', value: `${f1(AI.gp.found)}%`,
+      note: `Production-rate loss not captured by the physics, identified by the GP (actual ${f1(AI.gp.truth)}%)`, badge: ['info', `Bounded ±${AI.gp.bound}%`] },
+    { tab: 'Symbolic Regression', icon: FunctionSquare, name: 'Symbolic Regression', value: `${AI.sr.count} correlations`,
+      note: `Closed-form field correlations, R² ≥ ${AI.sr.minR2.toFixed(3)}`, badge: ['grey', 'Pending approval'] },
   ];
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -83,8 +85,8 @@ function Pinn() {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <Card title="Training: losses and error on unseen designs" icon={Activity} className="lg:col-span-7"
-        right={<Legend items={[['total loss', VIZ.purple], ['physics (PDE)', VIZ.pink], ['sensor data', VIZ.orange], ['held-out RMSE °C', VIZ.blue]]} />}>
+      <Card title="Training Loss and Validation Error" icon={Activity} className="lg:col-span-7"
+        right={<Legend items={[['Total loss', VIZ.purple], ['Physics (PDE) loss', VIZ.pink], ['Sensor data loss', VIZ.orange], ['Validation RMSE °C', VIZ.blue]]} />}>
         <div className="h-64">
           <ResponsiveContainer>
             <ComposedChart data={hist} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
@@ -92,34 +94,34 @@ function Pinn() {
               <XAxis dataKey="iter" type="number" {...AXIS} domain={[0, 'dataMax']} ticks={[0, 1000, 2000, 3000, 4000, 5000].filter((v) => v <= pinn.training.iterations)} tickFormatter={(v) => (v ? `${v / 1000}k` : '0')} />
               <YAxis yAxisId="l" scale="log" domain={['auto', 'auto']} {...AXIS} width={48} allowDataOverflow tickFormatter={(v) => v.toExponential(0)} />
               <YAxis yAxisId="e" orientation="right" {...AXIS} width={36} domain={[0, 'auto']} unit="°" />
-              <Tooltip formatter={(v, n) => (n === 'held-out RMSE' ? `${f1(v)} °C` : v.toExponential(2))} labelFormatter={(l) => `Iteration ${l}`} />
-              <Line yAxisId="l" dataKey="loss" name="total" stroke={VIZ.purple} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="l" dataKey="pde" name="physics" stroke={VIZ.pink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
-              <Line yAxisId="l" dataKey="data" name="sensor data" stroke={VIZ.orange} dot={false} strokeWidth={1.5} isAnimationActive={false} />
-              <Line yAxisId="e" dataKey="val_rmse_c" name="held-out RMSE" stroke={VIZ.blue} strokeWidth={2} connectNulls dot={{ r: 3 }} isAnimationActive={false} />
+              <Tooltip formatter={(v, n) => (n === 'Validation RMSE' ? `${f1(v)} °C` : v.toExponential(2))} labelFormatter={(l) => `Iteration ${l}`} />
+              <Line yAxisId="l" dataKey="loss" name="Total loss" stroke={VIZ.purple} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="l" dataKey="pde" name="Physics loss" stroke={VIZ.pink} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+              <Line yAxisId="l" dataKey="data" name="Sensor data loss" stroke={VIZ.orange} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+              <Line yAxisId="e" dataKey="val_rmse_c" name="Validation RMSE" stroke={VIZ.blue} strokeWidth={2} connectNulls dot={{ r: 3 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
         <p className="mt-2 text-xs text-ink-3">
-          {pinn.training.iterations.toLocaleString('en-IN')} Adam iterations, {pinn.training.collocation_per_iter.toLocaleString('en-IN')} random physics points each, trained in {Math.round(pinn.training.seconds)} s on a laptop CPU.
-          Held-out error is measured on heated radii of {pinn.training.holdout_designs_r_h.join(' and ')} m, which the network never trained on.
+          {pinn.training.iterations.toLocaleString('en-IN')} Adam iterations, {pinn.training.collocation_per_iter.toLocaleString('en-IN')} physics collocation points per iteration; training took {Math.round(pinn.training.seconds)} s on a laptop CPU.
+          Validation error is measured on heated radii of {pinn.training.holdout_designs_r_h.join(' and ')} m, which were excluded from training.
         </p>
       </Card>
 
-      <Card tour="pinn" title="Release gates" icon={ShieldCheck} className="lg:col-span-5"
-        right={<Status tone={pinn.status === 'trained' ? 'ok' : 'crit'}>{pinn.status === 'trained' ? 'Released to optimizer' : 'Held back'}</Status>}>
-        <StatRow label="Error on unseen designs (RMSE)" value={<span className="flex items-center gap-2">{f1(pinn.validation.val_rmse_c)} °C <Status tone={accOk ? 'ok' : 'crit'}>≤ {g.rmse_limit_c} °C</Status></span>} />
-        <StatRow label="Worst-case error" value={f1(pinn.validation.val_max_c)} unit="°C" />
-        <StatRow label="Energy audit, worst day" value={<span className="flex items-center gap-2">{audit.max_imbalance_pct.toFixed(2)}% <Status tone={audit.passed ? 'ok' : 'crit'}>≤ {audit.limit_pct}%</Status></span>} />
-        <StatRow label="Physics residual (final)" value={lastLoss.pde.toExponential(1)} />
-        <StatRow label="Speed vs finite-volume solver" value={`${Math.round(pinn.speed.speedup)}×`} unit={`${pinn.speed.pinn_ms} ms vs ${pinn.speed.solver_ms} ms`} />
-        <StatRow label="Network" value={`${pinn.architecture.hidden.length}×${pinn.architecture.hidden[0]} tanh`} unit={`${pinn.architecture.parameters.toLocaleString('en-IN')} weights`} />
+      <Card tour="pinn" title="Release Criteria" icon={ShieldCheck} className="lg:col-span-5"
+        right={<Status tone={pinn.status === 'trained' ? 'ok' : 'crit'}>{pinn.status === 'trained' ? 'Released to optimizer' : 'Withheld'}</Status>}>
+        <StatRow label="Validation error, root-mean-square (RMSE)" value={<span className="flex items-center gap-2">{f1(pinn.validation.val_rmse_c)} °C <Status tone={accOk ? 'ok' : 'crit'}>≤ {g.rmse_limit_c} °C</Status></span>} />
+        <StatRow label="Maximum validation error" value={f1(pinn.validation.val_max_c)} unit="°C" />
+        <StatRow label="Energy audit, largest daily imbalance" value={<span className="flex items-center gap-2">{audit.max_imbalance_pct.toFixed(2)}% <Status tone={audit.passed ? 'ok' : 'crit'}>≤ {audit.limit_pct}%</Status></span>} />
+        <StatRow label="Final physics residual" value={lastLoss.pde.toExponential(1)} />
+        <StatRow label="Speed-up over finite-volume solver" value={`${Math.round(pinn.speed.speedup)}×`} unit={`${pinn.speed.pinn_ms} ms vs ${pinn.speed.solver_ms} ms`} />
+        <StatRow label="Network architecture" value={`${pinn.architecture.hidden.length}×${pinn.architecture.hidden[0]} tanh`} unit={`${pinn.architecture.parameters.toLocaleString('en-IN')} weights`} />
         {pinn.trained_at && <StatRow label="Last trained" value={pinn.trained_at} />}
-        <p className="mt-3 text-xs text-ink-3">A network that fails either gate is never handed to the CSS optimizer. The solver stays the ground truth; the PINN is its fast, differentiable copy.</p>
+        <p className="mt-3 text-xs text-ink-3">A network that fails either criterion is never released to the Cyclic Steam Stimulation (CSS) optimizer. The solver remains the reference; the PINN is its fast, differentiable surrogate.</p>
       </Card>
 
-      <Card title={`PINN vs solver on a design it never saw (r_h = ${rh} m)`} icon={Thermometer} className="lg:col-span-7"
-        right={<Legend items={[...Object.entries(DAY_COLORS).map(([d, c]) => [`day ${d}`, c]), ['PINN (dashed)', '#8C8C9A', true]]} />}>
+      <Card title={`PINN Compared with Solver on a Validation Design (r_h = ${rh} m)`} icon={Thermometer} className="lg:col-span-7"
+        right={<Legend items={[...Object.entries(DAY_COLORS).map(([d, c]) => [`Day ${d}`, c]), ['PINN (dashed)', '#8C8C9A', true]]} />}>
         <div className="h-64">
           <ResponsiveContainer>
             <LineChart data={profData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -129,17 +131,17 @@ function Pinn() {
               <Tooltip formatter={(v, n) => [`${f1(v)} °C`, n]} labelFormatter={(l) => `r = ${l} m, mid-pay`} />
               {Object.entries(DAY_COLORS).map(([d, c]) => (
                 <React.Fragment key={d}>
-                  <Line dataKey={`s${d}`} name={`solver day ${d}`} stroke={c} strokeWidth={2} dot={false} isAnimationActive={false} />
-                  <Line dataKey={`p${d}`} name={`PINN day ${d}`} stroke="#16161D" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+                  <Line dataKey={`s${d}`} name={`Solver, day ${d}`} stroke={c} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line dataKey={`p${d}`} name={`PINN, day ${d}`} stroke="#16161D" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
                 </React.Fragment>
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-2 text-xs text-ink-3">Temperature across the heated zone at mid-pay as it cools. Coloured: finite-volume solver. Dashed: the PINN.</p>
+        <p className="mt-2 text-xs text-ink-3">Temperature across the heated zone at mid-pay as it cools. Solid coloured lines: finite-volume solver. Dashed lines: PINN.</p>
       </Card>
 
-      <Card title="Heated-zone average temperature" icon={Thermometer} className="lg:col-span-5" right={<Legend items={[['solver', VIZ.pink], ['PINN', '#16161D', true]]} />}>
+      <Card title="Mean Heated-Zone Temperature" icon={Thermometer} className="lg:col-span-5" right={<Legend items={[['Solver', VIZ.pink], ['PINN', '#16161D', true]]} />}>
         <div className="h-64">
           <ResponsiveContainer>
             <LineChart data={pinn.tbar.curve} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -147,15 +149,15 @@ function Pinn() {
               <XAxis dataKey="day" type="number" {...AXIS} domain={[0, pinn.physics.horizon_days]} />
               <YAxis {...AXIS} width={44} unit="°" domain={['auto', 'auto']} />
               <Tooltip formatter={(v) => `${f1(v)} °C`} labelFormatter={(l) => `Day ${l}`} />
-              <Line dataKey="solver_c" name="solver" stroke={VIZ.pink} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              <Line dataKey="solver_c" name="Solver" stroke={VIZ.pink} strokeWidth={2.5} dot={false} isAnimationActive={false} />
               <Line dataKey="pinn_c" name="PINN" stroke="#16161D" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-2 text-xs text-ink-3">T̄(t) is the number the reservoir model and the cut-off rule consume.</p>
+        <p className="mt-2 text-xs text-ink-3">T̄(t) is the input used by the reservoir model and the economic cut-off rule.</p>
       </Card>
 
-      <Card title="Energy audit: is heat conserved?" icon={ShieldCheck} className="lg:col-span-5" right={<Legend items={[['PINN', VIZ.purple], ['solver', '#8C8C9A', true]]} />}>
+      <Card title="Energy Conservation Audit" icon={ShieldCheck} className="lg:col-span-5" right={<Legend items={[['PINN', VIZ.purple], ['Solver', '#8C8C9A', true]]} />}>
         <div className="h-52">
           <ResponsiveContainer>
             <LineChart data={auditData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -171,11 +173,11 @@ function Pinn() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-2 text-xs text-ink-3">The boundaries are insulated, so the field must keep all {Math.round(audit.injected_gj).toLocaleString('en-IN')} GJ it started with. Checked on the network's own output, every 10 days.</p>
+        <p className="mt-2 text-xs text-ink-3">The boundaries are insulated, so the field must retain all {Math.round(audit.injected_gj).toLocaleString('en-IN')} GJ of initial energy. The check is applied to the network's output every 10 days.</p>
       </Card>
 
-      <Card title="How it is built" icon={Cpu} className="lg:col-span-7">
-        <Eq note="The initial condition is built in exactly, so the network only learns how the heat moves.">
+      <Card title="Model Formulation" icon={Cpu} className="lg:col-span-7">
+        <Eq note="The initial condition is imposed exactly, so the network learns only the heat transport.">
           {String.raw`\theta(r,z,t;\,r_h) = \theta_0(r,z;\,r_h) + \frac{t}{t_{end}}\,\mathrm{NN}(r,z,t,r_h)`}
         </Eq>
         <div className="mt-3">
@@ -184,9 +186,9 @@ function Pinn() {
           </Eq>
         </div>
         <ul className="mt-4 space-y-2 text-sm text-ink-2">
-          <li><b className="text-ink">One network, the whole design space.</b> Heated radius r<sub>h</sub> is an input, so the optimizer can try any steam volume without retraining.</li>
-          <li><b className="text-ink">Trained on sparse sensors, not a full field.</b> {pinn.training.sensors}, with ±{pinn.training.sensor_noise_c} °C noise. The physics loss fills in everywhere else.</li>
-          <li><b className="text-ink">Code:</b> <code className="text-xs">ushna/ml/pinn_training.py</code> (PyTorch training, NumPy inference) · <code className="text-xs">ushna/ml/train.py</code></li>
+          <li><b className="text-ink">One network for the full design space.</b> The heated radius r<sub>h</sub> is an input, so the optimizer can evaluate any steam volume without retraining.</li>
+          <li><b className="text-ink">Trained on sparse sensor data, not a full temperature field.</b> {pinn.training.sensors}, with ±{pinn.training.sensor_noise_c} °C noise. The physics loss constrains the solution elsewhere.</li>
+          <li><b className="text-ink">Source code:</b> <code className="text-xs">ushna/ml/pinn_training.py</code> (PyTorch training, NumPy inference) · <code className="text-xs">ushna/ml/train.py</code></li>
         </ul>
       </Card>
     </div>
@@ -194,7 +196,7 @@ function Pinn() {
 }
 
 // ───────────────────────────── EnKF ─────────────────────────────
-const LABELS = { kh: 'Permeability-thickness kh', skin: 'Skin s', k_ob: 'Overburden conductivity k_ob', c_rod: 'Rod damping c', A_visc: 'Walther A', B_visc: 'Walther B', eta_slip: 'Pump slippage' };
+const LABELS = { kh: 'Permeability-thickness kh', skin: 'Skin factor s', k_ob: 'Overburden thermal conductivity k_ob', c_rod: 'Rod damping coefficient c', A_visc: 'Walther constant A', B_visc: 'Walther constant B', eta_slip: 'Pump slippage' };
 
 function Enkf() {
   const names = Object.keys(enkf.units);
@@ -215,13 +217,13 @@ function Enkf() {
     <div className="space-y-4">
       <Card pad="p-0" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold"><Atom size={16} className="text-ink-3" /> What the filter learned in {AI.enkf.days} days</h2>
-          <span className="text-xs text-ink-3">twin experiment: data generated from known true values · click a row</span>
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold"><Atom size={16} className="text-ink-3" /> Parameter Estimates after {AI.enkf.days} Days</h2>
+          <span className="text-xs text-ink-3">Twin experiment: data generated from known true values · select a row for details</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-y border-line bg-canvas">
-              <tr>{['Parameter', 'Units', 'Prior (mean ± σ)', 'Learned (mean ± σ)', 'True value', 'Uncertainty cut', 'Verdict'].map((c) => <th key={c} className="th">{c}</th>)}</tr>
+              <tr>{['Parameter', 'Units', 'Prior (mean ± σ)', 'Estimated (mean ± σ)', 'True value', 'Uncertainty reduction', 'Assessment'].map((c) => <th key={c} className="th">{c}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((r) => (
@@ -238,8 +240,8 @@ function Enkf() {
                     </span>
                   </td>
                   <td className="td">
-                    {r.held ? <Badge tone="grey">held (card / PVT)</Badge>
-                      : r.hit ? <Status tone="ok">recovered</Status> : <Status tone="warn">weakly observable</Status>}
+                    {r.held ? <Badge tone="grey">Held (dynamometer card / PVT)</Badge>
+                      : r.hit ? <Status tone="ok">Recovered</Status> : <Status tone="warn">Weakly observable</Status>}
                   </td>
                 </tr>
               ))}
@@ -249,7 +251,7 @@ function Enkf() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card tour="enkf" title={`Assimilation: ${LABELS[key] || key}`} className="lg:col-span-2" right={<Legend items={[['learned mean', VIZ.purple], ['±2σ band', '#D9CCFF'], ['true value', '#8C8C9A', true]]} />}>
+        <Card tour="enkf" title={`Assimilation History: ${LABELS[key] || key}`} className="lg:col-span-2" right={<Legend items={[['Estimated mean', VIZ.purple], ['±2σ band', '#D9CCFF'], ['True value', '#8C8C9A', true]]} />}>
           <div className="h-64">
             <ResponsiveContainer>
               <ComposedChart data={trace} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -264,17 +266,17 @@ function Enkf() {
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title="Reading the result">
+        <Card title="Interpretation">
           <p className="text-sm text-ink-2">
-            Every day, {40} copies of the physics model are nudged toward the latest temperature and rate. Where they agree, the band narrows.
-            On kh the uncertainty fell {Math.round(AI.enkf.collapse)}%.
+            Each day, an ensemble of {40} physics-model realisations is updated toward the latest temperature and rate measurements. Where the realisations converge, the uncertainty band narrows.
+            For kh, the uncertainty fell by {Math.round(AI.enkf.collapse)}%.
           </p>
           <p className="mt-3 text-sm text-ink-2">
-            {p.held ? `${LABELS[key]} is deliberately held: temperature and rate cannot see it, so it waits for dynamometer-card or lab PVT data.`
-              : p.hit ? `${LABELS[key]} was recovered: learned ${show(p.m)} against a true ${show(p.truth)} (${p.err >= 0 ? '+' : '−'}${Math.abs(Math.round(p.err * 100))}%).`
-                : `${LABELS[key]} is only weakly visible in temperature and rate, so the filter does not claim more certainty than the data supports. Card data tightens it.`}
+            {p.held ? `${LABELS[key]} is deliberately held constant: temperature and rate data cannot resolve it, so it awaits dynamometer-card or laboratory PVT data.`
+              : p.hit ? `${LABELS[key]} was recovered: estimated ${show(p.m)} against a true value of ${show(p.truth)} (${p.err >= 0 ? '+' : '−'}${Math.abs(Math.round(p.err * 100))}%).`
+                : `${LABELS[key]} is only weakly observable in temperature and rate data, so the filter does not claim more certainty than the data support. Dynamometer-card data would constrain it further.`}
           </p>
-          <p className="mt-3 text-xs text-ink-3">This is a twin experiment: the data were generated from known true parameters, which is the only way to prove the filter recovers the truth before trusting it on field data.</p>
+          <p className="mt-3 text-xs text-ink-3">This is a twin experiment: the data were generated from known true parameters, which is the only way to demonstrate that the filter recovers the true values before it is applied to field data.</p>
         </Card>
       </div>
     </div>
@@ -286,8 +288,8 @@ function Gp() {
   const data = gp.day.map((d, i) => ({ d, obs: gp.observed_residual_pct[i], mean: gp.gp_mean_pct[i], band: [gp.gp_lo_pct[i], gp.gp_hi_pct[i]], truth: gp.true_unmodelled_pct[i] }));
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Card title="What the physics missed: residual δ over the cycle" icon={Sigma} className="lg:col-span-2"
-        right={<Legend items={[['field − physics', VIZ.orange], ['GP mean', VIZ.purple], ['95% band', '#D9CCFF'], ['true unmodelled loss', '#8C8C9A', true]]} />}>
+      <Card title="Model Discrepancy: Residual δ over the Cycle" icon={Sigma} className="lg:col-span-2"
+        right={<Legend items={[['Field − physics', VIZ.orange], ['GP mean', VIZ.purple], ['95% confidence band', '#D9CCFF'], ['True unmodelled loss', '#8C8C9A', true]]} />}>
         <div className="h-80">
           <ResponsiveContainer>
             <ComposedChart data={data} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
@@ -295,8 +297,8 @@ function Gp() {
               <XAxis dataKey="d" type="number" {...AXIS} domain={['dataMin', 'dataMax']} />
               <YAxis {...AXIS} unit="%" domain={[-gp.bound_pct - 5, gp.bound_pct + 5]} width={48} allowDataOverflow />
               <Tooltip formatter={(v) => (Array.isArray(v) ? v.map((x) => `${x.toFixed(1)}%`).join(' – ') : `${v.toFixed(1)}%`)} labelFormatter={(l) => `Day ${l}`} />
-              <ReferenceLine y={gp.bound_pct} stroke="#DC2626" strokeDasharray="4 3" label={{ value: `+${gp.bound_pct}% hard bound`, position: 'insideTopLeft', fontSize: 11, fill: '#DC2626' }} />
-              <ReferenceLine y={-gp.bound_pct} stroke="#DC2626" strokeDasharray="4 3" label={{ value: `−${gp.bound_pct}% hard bound`, position: 'insideBottomLeft', fontSize: 11, fill: '#DC2626' }} />
+              <ReferenceLine y={gp.bound_pct} stroke="#DC2626" strokeDasharray="4 3" label={{ value: `+${gp.bound_pct}% limit`, position: 'insideTopLeft', fontSize: 11, fill: '#DC2626' }} />
+              <ReferenceLine y={-gp.bound_pct} stroke="#DC2626" strokeDasharray="4 3" label={{ value: `−${gp.bound_pct}% limit`, position: 'insideBottomLeft', fontSize: 11, fill: '#DC2626' }} />
               <ReferenceLine y={0} stroke="#16161D" />
               <Area dataKey="band" stroke="none" fill="#D9CCFF" fillOpacity={0.6} isAnimationActive={false} />
               <Scatter dataKey="obs" fill={VIZ.orange} fillOpacity={0.7} isAnimationActive={false} />
@@ -306,12 +308,12 @@ function Gp() {
           </ResponsiveContainer>
         </div>
       </Card>
-      <Card title="Kennedy–O'Hagan calibration">
-        <Eq note={`The GP learns only the discrepancy δ, clipped to ±${gp.bound_pct}% of the physics prediction.`}>{String.raw`y_{obs} = f_{physics}(x,\theta) + \delta(x) + \varepsilon`}</Eq>
+      <Card title="Kennedy–O'Hagan Calibration">
+        <Eq note={`The Gaussian Process learns only the discrepancy δ, limited to ±${gp.bound_pct}% of the physics prediction.`}>{String.raw`y_{obs} = f_{physics}(x,\theta) + \delta(x) + \varepsilon`}</Eq>
         <ul className="mt-4 space-y-3 text-sm text-ink-2">
-          <li><b className="text-ink">It found the gap.</b> The field rate drifts {f1(AI.gp.truth)}% below the physics by day {gp.day[gp.day.length - 1]}; the GP recovered {f1(AI.gp.found)}% (RMSE {gp.rmse_vs_truth_pct.toFixed(1)} points).</li>
-          <li><b className="text-ink">A growing deficit is a finding.</b> It is the signature of near-wellbore skin damage, which is what the EnKF re-estimates and the solvent-treatment card acts on.</li>
-          <li><b className="text-ink">Physics stays the backbone.</b> The correction can never exceed ±{gp.bound_pct}%, so it cannot produce a physically absurd answer.</li>
+          <li><b className="text-ink">The discrepancy was identified.</b> The field rate falls {f1(AI.gp.truth)}% below the physics prediction by day {gp.day[gp.day.length - 1]}; the GP estimated {f1(AI.gp.found)}% (RMSE {gp.rmse_vs_truth_pct.toFixed(1)} percentage points).</li>
+          <li><b className="text-ink">A growing deficit is diagnostic.</b> It indicates near-wellbore skin damage, which the EnKF re-estimates and the solvent-treatment recommendation addresses.</li>
+          <li><b className="text-ink">Physics remains the foundation.</b> The correction can never exceed ±{gp.bound_pct}%, so it cannot produce a physically implausible result.</li>
         </ul>
       </Card>
     </div>
@@ -319,21 +321,21 @@ function Gp() {
 }
 
 // ─────────────────────────── Symbolic regression ───────────────────────────
-const SR_TITLES = { viscosity_law: 'Field viscosity law μ(T, asphaltene)', soak_efficiency: 'Soak thermal retention η(t_soak, V_steam)', rod_hazard: 'Rod failure hazard H(ΔF, t_comp)' };
+const SR_TITLES = { viscosity_law: 'Field Viscosity Correlation μ(T, asphaltene)', soak_efficiency: 'Soak Thermal Retention η(t_soak, V_steam)', rod_hazard: 'Rod Failure Hazard H(ΔF, t_comp)' };
 
 function Symbolic() {
   return (
     <div className="space-y-4">
       <p className="max-w-3xl text-sm text-ink-2">
-        The discovered laws are short enough to print, check for units, and add to the Baghewala operating manual after an engineer signs them off.
-        These fits use synthetic lab-style data with measurement noise; they are refitted on measured PVT, soak and rod-failure records before operational use.
+        The discovered correlations are compact enough to print, verify for dimensional consistency and add to the Baghewala operating manual once approved by an engineer.
+        These fits use synthetic laboratory-style data with measurement noise; they are refitted to measured PVT, soak and rod-failure records before operational use.
       </p>
       {Object.entries(eqs).map(([k, e]) => (
-        <Card key={k} title={SR_TITLES[k] || k} icon={FunctionSquare} right={<Badge tone="info">Proposed for sign-off</Badge>}>
+        <Card key={k} title={SR_TITLES[k] || k} icon={FunctionSquare} right={<Badge tone="info">Pending engineering approval</Badge>}>
           <div className="overflow-x-auto rounded-xl border border-line bg-canvas px-4 py-3"><Tex block>{e.latex}</Tex></div>
           <div className="mt-3 grid gap-x-8 sm:grid-cols-2">
-            <StatRow label="Fit quality R²" value={e.r2_score.toFixed(4)} />
-            <StatRow label="RMSE" value={e.rmse >= 1 ? show(e.rmse) : e.rmse.toExponential(2)} />
+            <StatRow label="Coefficient of determination R²" value={e.r2_score.toFixed(4)} />
+            <StatRow label="Root-mean-square error (RMSE)" value={e.rmse >= 1 ? show(e.rmse) : e.rmse.toExponential(2)} />
           </div>
           <p className="mt-2 text-xs text-ink-3">{e.signoff}</p>
         </Card>
