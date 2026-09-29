@@ -39,6 +39,9 @@ own spreadsheet or PDF with the same result.
 A row is **skipped with a reason** when a required field is blank or non-numeric, `oil ≤ 0`,
 `steam < 0`, `cycle` is not a positive integer, or the well id is not one of the six modelled
 wells. A repeated (well, cycle) keeps the last row and reports the earlier one as a duplicate.
+Row numbers are the spreadsheet's own row numbers; for a PDF they count data rows under the
+header. Title rows above the header are ignored: the header is the first row where at least
+two fields match. Blank or invalid optional values become empty, not skipped rows.
 
 ## Units
 
@@ -88,7 +91,9 @@ when the tour or welcome modal select a well. Closes on ×, Esc or backdrop clic
 
 When `history[well.id]` has records:
 - Historical bars = uploaded `sor`, `energy`, `failures`, one bar per uploaded cycle.
-- USHNA SOR = `design.best.sor` (the twin's optimized cycle design for this well).
+- USHNA SOR = `design.best.sor` (the twin's NPV-optimal cycle design for this well). It
+  maximises NPV, not SOR, so for some wells it sits above history; the text states the
+  numbers either way.
 - Energy and rod failures: historical bars only; note "Twin counterfactual not modelled per
   cycle yet". A chart whose field is absent from the upload says "Not in the uploaded file".
 - Caption: "From `<file>` · N cycles uploaded <date>" in place of the "Illustrative" line.
@@ -104,11 +109,15 @@ Wells without records keep the current synthetic view and its "Illustrative" cap
 
 ### Sample files — `frontend/public/samples/`
 
-`cycle-history.csv`, `.xlsx`, `.pdf` with identical content: all six wells, each with
-`well.cycle − 1` completed cycles, values in the ranges the twin produces (SOR roughly 3–8,
-energy 18–24 kWh/bbl, failures 0–3). The PDF has a digital text layer with a real table. A
-script `frontend/scripts/make-samples.mjs` generates all three from one array so they can't
-drift.
+`sample-cycle-history.csv`, `.xlsx`, `.pdf` with identical content: all six wells, each with
+`well.cycle − 1` completed cycles (18 rows), values in the ranges the twin produces (SOR
+roughly 6.5–10, energy 19–24 kWh/bbl, failures 0–3). The PDF has a digital text layer with a
+title line, a real table and a page footer. A script `frontend/scripts/make-samples.mjs`
+generates all three from one array so they can't drift.
+
+Charts carry a provenance watermark (`index.css`). Charts of uploaded records say
+"uploaded records"; when the file is the synthetic sample (name starts `sample-cycle-history`)
+they say "synthetic sample", so no screenshot of the sample can pass for field data.
 
 ## Testing
 
