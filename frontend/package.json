@@ -7,14 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "node src/data/twin.check.mjs"
+    "check": "node src/data/twin.check.mjs && node src/data/history.check.mjs",
+    "samples": "node scripts/make-samples.mjs"
   },
   "dependencies": {
     "katex": "^0.16.47",
     "lucide-react": "^0.441.0",
+    "pdfjs-dist": "6.3.289",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
