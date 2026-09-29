@@ -13,7 +13,10 @@ import threading
 import time
 from collections import deque
 
-import psycopg
+try:
+    import psycopg
+except ImportError:
+    psycopg = None
 
 log = logging.getLogger('ushna.db')
 
@@ -84,4 +87,9 @@ class DbWriter:
 def writer_from_env():
     """A DbWriter when DATABASE_URL is set, else None (the twin runs without a database)."""
     dsn = os.environ.get('DATABASE_URL')
-    return DbWriter(dsn) if dsn else None
+    if not dsn:
+        return None
+    if psycopg is None:
+        log.warning('DATABASE_URL is set but psycopg is not installed; database writer disabled.')
+        return None
+    return DbWriter(dsn)

@@ -1,10 +1,11 @@
-# Whole edge stack from a cold clone:  docker compose up --build
-# Dashboard + API: http://localhost:8000   (OpenAPI docs at /docs)
-# Nothing here needs an external host at runtime; the edge runs on a disconnected network.
+# USHNA Full Edge Stack: docker compose up --build
+# Dashboard + API: http://localhost:8000 (OpenAPI docs at /docs)
+# Standalone service startup: docker compose up backend
 
 services:
   mosquitto:
     image: eclipse-mosquitto:2
+    container_name: ushna-mosquitto
     ports: ["1883:1883"]
     volumes:
       - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
@@ -16,8 +17,9 @@ services:
       retries: 5
     restart: unless-stopped
 
-  timescaledb:
+  db:
     image: timescale/timescaledb:latest-pg16
+    container_name: ushna-db
     environment:
       POSTGRES_DB: ushna
       POSTGRES_USER: ushna
@@ -32,25 +34,40 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - db
+          - timescaledb
 
-  # API + MQTT bridge in one process. No depends_on: it retries the broker and buffers
-  # rows while the database is away, so it starts and keeps running without either.
-  ushna-edge:
+  backend:
     build: .
+    container_name: ushna-backend
     environment:
       MQTT_HOST: mosquitto
-      DATABASE_URL: postgresql://ushna:ushna@timescaledb:5432/ushna
+      DATABASE_URL: postgresql://ushna:ushna@db:5432/ushna
     ports: ["8000:8000"]
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      default:
+        aliases:
+          - backend
+          - ushna-edge
 
   simulator:
     build: .
+    container_name: ushna-simulator
     command: ["python", "-m", "ushna.data.mqtt_publisher", "--interval", "1"]
     environment:
       MQTT_HOST: mosquitto
     depends_on:
       mosquitto:
         condition: service_healthy
+      backend:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
