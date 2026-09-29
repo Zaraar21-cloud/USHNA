@@ -26,6 +26,8 @@
   font-size: 10px; letter-spacing: .02em; color: #A16207; opacity: .7; pointer-events: none;
 }
 .no-mark .recharts-responsive-container::after { display: none; }
+.mark-uploaded .recharts-responsive-container::after { content: 'uploaded records'; color: #047857; }
+.mark-sample .recharts-responsive-container::after { content: 'synthetic sample · uploaded'; }
 
 /* Guided-tour spotlight */
 [data-tour] { scroll-margin-top: 5rem; } /* clear of the sticky header */

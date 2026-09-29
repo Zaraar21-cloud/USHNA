@@ -402,7 +402,7 @@ function WellsTable({ ctx }) {
               return (
                 <tr
                   key={st.well.id}
-                  onClick={() => ctx.selectWell(st.well.id)}
+                  onClick={() => ctx.pickWell(st.well.id)}
                   className={`cursor-pointer border-b border-line last:border-0 hover:bg-canvas ${active ? 'bg-brand-50/60' : ''}`}
                 >
                   <td className="td">

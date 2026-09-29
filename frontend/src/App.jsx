@@ -8,10 +8,11 @@ import RodString from './pages/RodString';
 import Learning, { LEARN_TABS } from './pages/Learning';
 import Recommendations from './pages/Recommendations';
 import SrpControl from './pages/SrpControl';
-import CssDesign from './pages/CssDesign';
+import CssDesign, { CSS_TABS } from './pages/CssDesign';
 import Telemetry from './pages/Telemetry';
 import Traceability from './pages/Traceability';
 import { fetchState, submitSetpoint } from './data/api';
+import { parseStored } from './data/history';
 
 class Boundary extends React.Component {
   state = { error: null };
@@ -35,6 +36,7 @@ const cachedState = (w, day, sp) => {
 };
 
 const clock = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+const HISTORY_KEY = 'ushna.history';
 
 const SEED_LOG = [
   { time: '09:12', well: 'BGW-11', requested: 'SPM 5.4 · down 100%', applied: 'SPM 3.5 · down 100%', binding: 'FMI(z) > 0.15', action: 'clamped' },
@@ -57,9 +59,17 @@ export default function App() {
   const [log, setLog] = useState(SEED_LOG);
   const [playing, setPlaying] = useState(false);
   const [learnTab, setLearnTab] = useState(LEARN_TABS[0]);
+  const [cssTab, setCssTab] = useState(CSS_TABS[0]);
+  const [wellInfo, setWellInfo] = useState(false); // well pop-up, opened when the viewer picks a well
   // Accepted field calibration (About this data). Applying it rewrites the twin's constants, so every derived value recomputes.
   const [calib, setCalib] = useState(calibDefaults);
   const acceptCalib = (next) => { applyCalibration(next); stateCache.clear(); setCalib(next); };
+  // Historical cycle records (Edge telemetry upload), kept per browser.
+  const [history, setHistoryState] = useState(() => { try { return parseStored(localStorage.getItem(HISTORY_KEY)); } catch { return null; } });
+  const setHistory = (h) => {
+    setHistoryState(h);
+    try { if (h) localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); else localStorage.removeItem(HISTORY_KEY); } catch { /* storage blocked: records last this visit */ }
+  };
 
   const well = WELLS.find((w) => w.id === wellId);
   const day = days[wellId] ?? well.day;
@@ -127,6 +137,9 @@ export default function App() {
     setDay: (d) => { stopDemo(); setDays((p) => ({ ...p, [wellId]: d })); },
     resetDay: () => { stopDemo(); setDays((p) => { const { [wellId]: _, ...rest } = p; return rest; }); },
     selectWell: (id) => { stopDemo(); setWellId(id); },
+    pickWell: (id) => { stopDemo(); setWellId(id); setWellInfo(true); },
+    wellInfo,
+    closeWellInfo: () => setWellInfo(false),
     playing,
     demoT,
     stopDemo,
@@ -139,6 +152,10 @@ export default function App() {
     sources: sourceRows(calib),
     learnTab,
     setLearnTab,
+    cssTab,
+    setCssTab,
+    history,
+    setHistory,
     runCycle: () => {
       if (playing) return setPlaying(false);
       if (demoT != null && demoT < FIELD.horizon) return setPlaying(true); // resume

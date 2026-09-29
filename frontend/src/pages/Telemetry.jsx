@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from 'recharts';
 import { Radio, Zap, Upload, Pause, Play, Cpu, WifiOff } from 'lucide-react';
 import { PageHeader, Card, StatRow, Badge, Legend, VIZ, AXIS, GRID } from '../components/ui';
+import { RecordsUpload } from '../components/Records';
 
 const HZ = 20, WINDOW = 15 * HZ, JERK_LIMIT = 4, SIM = 'simulated edge stream';
 
@@ -72,7 +73,8 @@ export default function Telemetry({ ctx }) {
         }
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card tour="telemetry" title="Z-acceleration (g) and jerk" icon={Radio} className="lg:col-span-8" right={<Legend items={[['z accel', VIZ.purple], ['jerk', VIZ.pink]]} />}>
+        <div data-tour="telemetry" className="space-y-4 lg:col-span-8">
+        <Card title="Z-acceleration (g) and jerk" icon={Radio} right={<Legend items={[['z accel', VIZ.purple], ['jerk', VIZ.pink]]} />}>
           <div className="h-44">
             <ResponsiveContainer>
               <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -96,6 +98,8 @@ export default function Telemetry({ ctx }) {
             </ResponsiveContainer>
           </div>
         </Card>
+        <RecordsUpload ctx={ctx} />
+        </div>
         <div className="space-y-4 lg:col-span-4">
           <Card title="Edge node" icon={Cpu}>
             <StatRow label="Source" value={<Badge tone={source === SIM ? 'info' : 'ok'}>{source}</Badge>} />

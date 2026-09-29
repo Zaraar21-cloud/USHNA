@@ -3,17 +3,18 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar as RBar, XAxis, YAx
 import { Timer, Grid3x3, History } from 'lucide-react';
 import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt, Toggle } from '../components/ui';
 import { FIELD } from '../data/twin';
+import { markClass } from '../data/history';
 
-const TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest'];
+export const CSS_TABS = ['Cut-off (optimal stopping)', 'Cycle design (Bayesian opt.)', 'Counterfactual backtest'];
 
 export default function CssDesign({ ctx }) {
-  const [tab, setTab] = useState(TABS[0]);
+  const { cssTab: tab, setCssTab: setTab } = ctx;
   return (
     <>
-      <PageHeader title="CSS design & cut-off" subtitle="When to stop producing and steam the well again, and how much steam to use next time." tabs={TABS} tab={tab} onTab={setTab} />
-      {tab === TABS[0] && <Cutoff s={ctx.s} />}
-      {tab === TABS[1] && <Design ctx={ctx} />}
-      {tab === TABS[2] && <Backtest well={ctx.well} design={ctx.design} />}
+      <PageHeader title="CSS design & cut-off" subtitle="When to stop producing and steam the well again, and how much steam to use next time." tabs={CSS_TABS} tab={tab} onTab={setTab} />
+      {tab === CSS_TABS[0] && <Cutoff s={ctx.s} />}
+      {tab === CSS_TABS[1] && <Design ctx={ctx} />}
+      {tab === CSS_TABS[2] && <Backtest well={ctx.well} design={ctx.design} history={ctx.history} />}
     </>
   );
 }
@@ -131,7 +132,9 @@ function Design({ ctx }) {
   );
 }
 
-function Backtest({ well, design }) {
+function Backtest({ well, design, history }) {
+  const recs = history?.wells[well.id];
+  if (recs?.length) return <UploadedBacktest well={well} design={design} history={history} recs={recs} />;
   const data = Array.from({ length: well.cycle }, (_, i) => {
     const c = i + 1;
     const hSor = design.current.sor * 1.15 + 0.4 * Math.sin(c * 1.7) + 0.1 * c; // habit cut-off runs above the twin's SOR
@@ -173,6 +176,52 @@ function Backtest({ well, design }) {
         ))}
       </div>
       <p className="text-xs text-ink-3">Illustrative backtest on synthetic cycle history. Validation protocol: leave-one-cycle-out history matching, an energy-balance closure audit, and card-reconstruction error on held-out cards.</p>
+    </div>
+  );
+}
+
+// Historical bars are the uploaded cycles. USHNA's SOR is the twin's NPV-optimal design for this
+// well; energy and rod failures have no per-cycle counterfactual yet, so only history is drawn.
+function UploadedBacktest({ well, design, history, recs }) {
+  const data = recs.map((r) => ({ cycle: `C${r.cycle}`, hSor: r.sor, uSor: design.best.sor, hE: r.energy, hF: r.failures }));
+  const avg = recs.reduce((a, r) => a + r.sor, 0) / recs.length;
+  const charts = [
+    ['Steam–oil ratio', 'hSor', 'uSor', (v) => v.toFixed(2)],
+    ['Energy per barrel (kWh/bbl)', 'hE', null, (v) => v.toFixed(1)],
+    ['Rod failures', 'hF', null, (v) => v],
+  ];
+  return (
+    <div className="space-y-4">
+      <p className="max-w-3xl text-sm text-ink-2">
+        {well.id}'s uploaded history: {recs.length} cycle{recs.length > 1 ? 's' : ''} at an average SOR of {avg.toFixed(2)}.
+        The twin's NPV-optimal design for this well ({fmt.n0(design.best.steam)} t steam, {design.best.soak} d soak) runs at SOR {design.best.sor.toFixed(2)}
+        {design.best.sor < avg ? `, ${Math.round((1 - design.best.sor / avg) * 100)}% lower.` : '.'}
+      </p>
+      <div className={`grid grid-cols-1 gap-4 lg:grid-cols-3 ${markClass(history)}`}>
+        {charts.map(([title, h, u, f]) => (
+          <Card key={title} title={title} icon={History} right={<Legend items={u ? [['historical', VIZ.grey], ['USHNA', VIZ.pink]] : [['historical', VIZ.grey]]} />}>
+            {data.some((d) => d[h] != null) ? (
+              <div className="h-56">
+                <ResponsiveContainer>
+                  <BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }} barGap={2}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="cycle" {...AXIS} />
+                    <YAxis {...AXIS} width={44} allowDecimals={h !== 'hF'} />
+                    <Tooltip formatter={(v) => f(v)} />
+                    <RBar dataKey={h} name="Historical" fill={VIZ.grey} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                    {u && <RBar dataKey={u} name="USHNA" fill={VIZ.pink} radius={[4, 4, 0, 0]} isAnimationActive={false} />}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <p className="grid h-56 place-items-center text-sm text-ink-3">Not in the uploaded file</p>}
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-ink-3">
+        Historical: {history.file}{history.sample && ' (synthetic sample)'}, imported {new Date(history.at).toLocaleDateString('en-IN')}.
+        USHNA: SOR of the twin's NPV-optimal cycle design; it maximises NPV, so its SOR can sit above history.
+        Energy and rod failures: the twin's per-cycle counterfactual is not modelled yet, so only history is shown.
+      </p>
     </div>
   );
 }

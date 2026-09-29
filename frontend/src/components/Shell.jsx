@@ -6,6 +6,7 @@ import {
 import { Avatar, Badge, Toggle, sub } from './ui';
 import { FIELD, CALIBRATION, SOURCE_NOTES, calibDefaults, fmtCalib, mid, heatedRadius, viscosity } from '../data/twin';
 import { AI } from '../data/ml';
+import { WellRecords } from './Records';
 
 // Ordered by the story a first-time visitor follows, not by architecture.
 const NAV = [
@@ -31,7 +32,7 @@ const n0 = (x) => Math.round(x).toLocaleString('en-IN');
 // Ordered by the architecture diagram (Traceability page), so each step's layer badge maps to a box on the slide.
 const TOUR = [
   { layer: 'Observation layer', page: 'Telemetry', target: 'telemetry', title: 'The data coming in',
-    text: () => 'The twin runs on what the pad already records: SCADA, VFD, surface dynamometer, wellhead pressures and steam flow. This is a simulated polished-rod vibration stream; spikes flag rod impact.' },
+    text: () => 'The twin runs on what the pad already records: SCADA, VFD, surface dynamometer, wellhead pressures and steam flow. This is a simulated polished-rod vibration stream; spikes flag rod impact. It also ingests the pad\'s historical cycle records: upload a spreadsheet or PDF below, or try the sample.' },
   { layer: 'Physics core · reservoir', page: 'Reservoir', target: 'thermal', title: 'The problem',
     text: ({ s }) => `After each steam job the heated zone cools. Oil at the pump thickens from ${n0(s.rows[0].mu)} cP on day 0 to ${n0(s.rows[s.cut.day].mu)} cP by the cut-off on day ${s.cut.day}.` },
   { layer: 'Physics core · wellbore', page: 'Wellbore', target: 'ramey', title: 'The coupling',
@@ -127,6 +128,8 @@ export default function Shell({ page, go, ctx, children }) {
   const [tourStep, setTourStep] = useState(null);
   const [tips, setTips] = useState(false);
   const step = tourStep == null ? null : TOUR[tourStep];
+  const pickWell = ctx.pickWell;
+  useEffect(() => { if (step && ctx.wellInfo) ctx.closeWellInfo(); }, [step, ctx.wellInfo]); // eslint-disable-line react-hooks/exhaustive-deps -- no pop-up over (or queued behind) the tour
 
   // First visit: the cycle is already running, slowly, behind the welcome modal.
   useEffect(() => {
@@ -178,7 +181,7 @@ export default function Shell({ page, go, ctx, children }) {
               {fleet.map((st) => (
                 <li key={st.well.id}>
                   <button
-                    onClick={() => { ctx.selectWell(st.well.id); close(); }}
+                    onClick={() => { pickWell(st.well.id); close(); }}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-canvas ${st.well.id === well.id ? 'bg-brand-50' : ''}`}
                   >
                     <Avatar text={st.well.id.slice(-2)} color={st.well.hue} size={24} />
@@ -251,7 +254,7 @@ export default function Shell({ page, go, ctx, children }) {
                 <ul className="max-h-80 overflow-y-auto">
                   {alerts.map((a, i) => (
                     <li key={i}>
-                      <button onClick={() => { ctx.selectWell(a.well); close(); }} className="flex w-full items-start gap-2 rounded-lg px-1 py-2 text-left text-sm hover:bg-canvas">
+                      <button onClick={() => { pickWell(a.well); close(); }} className="flex w-full items-start gap-2 rounded-lg px-1 py-2 text-left text-sm hover:bg-canvas">
                         <Badge tone={a.tone}>{a.well}</Badge>
                         <span className="text-ink-2">{sub(a.text)}</span>
                       </button>
@@ -307,6 +310,7 @@ export default function Shell({ page, go, ctx, children }) {
           onTour={() => { if (well.id !== 'BGW-07') ctx.selectWell('BGW-07'); startTour(); }} // selectWell would stop the demo
         />
       )}
+      {ctx.wellInfo && !step && <WellRecords ctx={ctx} go={go} onClose={ctx.closeWellInfo} />}
       {step && (
         <TourPanel
           step={step} i={tourStep} n={TOUR.length} ctx={ctx}

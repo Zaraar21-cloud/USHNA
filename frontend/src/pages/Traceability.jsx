@@ -41,7 +41,7 @@ export default function Traceability({ ctx }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card title="System architecture: a closed loop" className="lg:col-span-2">
           <div className="relative pr-8">
-            <Box title="Observation layer" tone="obs">SCADA · VFD · surface dynamometer · THP/CHP · steam mass flow · echometer · flowline T</Box>
+            <Box title="Observation layer" tone="obs">SCADA · VFD · surface dynamometer · THP/CHP · steam mass flow · echometer · flowline T · cycle records (CSV · XLSX · PDF)</Box>
             <Down />
             <Box title="Data assimilation — EnKF">kh · skin · heat-loss coefficient · rod damping c · PVT · pump slippage</Box>
             <Down />
