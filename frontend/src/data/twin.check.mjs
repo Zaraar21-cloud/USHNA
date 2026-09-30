@@ -1,4 +1,4 @@
-// Run: npm run check — fails loudly if the coupling chain stops behaving physically.
+// Run: npm run check. fails loudly if the coupling chain stops behaving physically.
 import assert from 'node:assert/strict';
 import { WELLS, FIELD, viscosity, simulate, buildState, envelope, recommendations, designSpace, REQUIRED_FIELDS, applyCalibration, calibDefaults } from './twin.js';
 

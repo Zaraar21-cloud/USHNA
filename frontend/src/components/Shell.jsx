@@ -132,13 +132,6 @@ export default function Shell({ page, go, ctx, children }) {
   const pickWell = ctx.pickWell;
   useEffect(() => { if (step && ctx.wellInfo) ctx.closeWellInfo(); }, [step, ctx.wellInfo]); // eslint-disable-line react-hooks/exhaustive-deps -- no pop-up over (or queued behind) the tour
 
-  // First visit: the cycle is already running, slowly, behind the welcome modal.
-  useEffect(() => {
-    if (about !== 'welcome') return;
-    ctx.setPace(0.5);
-    ctx.runCycle({ stay: true }); // stays on the Dashboard behind the modal
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
-
   // Tour: navigate to the step's page, then spotlight its panel.
   useEffect(() => {
     if (!step?.page) return;

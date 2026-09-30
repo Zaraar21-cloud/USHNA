@@ -226,7 +226,7 @@ function Fatigue({ s }) {
         </Card>
         <Card title="Lubinski Buckling Check">
           <StatRow label="Segment in compression" value={compression.length ? `${compression.length * 20} m` : 'None'} tone={compression.length ? 'crit' : 'ok'} />
-          <StatRow label="Neutral point" value={neutral != null ? `${neutral} m` : '—'} />
+          <StatRow label="Neutral point" value={neutral != null ? `${neutral} m` : 'Not available'} />
           <StatRow label="Peak polished-rod load" value={fmt.n1(s.loads.PPRL / 1000)} unit="kN" />
           <StatRow label="Minimum polished-rod load" value={fmt.n1(s.loads.MPRL / 1000)} unit="kN" tone={s.loads.MPRL < 0 ? 'crit' : undefined} />
           <p className="mt-3 text-xs text-ink-3">Segments in compression are checked for the onset of helical buckling and for tubing contact load. Each stroke in compression increases the rod-failure hazard.</p>

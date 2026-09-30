@@ -1,4 +1,4 @@
-// Run: npm run check — the Model Test tab against the live twin.
+// Run: npm run check. the Model Test tab against the live twin.
 import assert from 'node:assert/strict';
 import { WELLS, FIELD, WALTHER, designSpace, buildState } from './twin.js';
 import { studio, studioDefaults, PRESETS, BOUNDS } from './studio.js';

@@ -327,7 +327,7 @@ function TrajectoryCard({ s }) {
               <XAxis dataKey="p" {...AXIS} type="number" domain={[0, FIELD.horizon]} tickCount={7} />
               <YAxis yAxisId="t" {...AXIS} width={40} />
               <YAxis yAxisId="mu" orientation="right" {...AXIS} width={44} />
-              <Tooltip formatter={(v) => (v == null ? '—' : fmt.n0(v))} labelFormatter={(l) => `Production day ${l}`} />
+              <Tooltip formatter={(v) => (v == null ? 'Not available' : fmt.n0(v))} labelFormatter={(l) => `Production day ${l}`} />
               {markers('t')}
               <Line yAxisId="t" dataKey="TpH" name="Pump temperature °C" stroke={VIZ.orange} dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line yAxisId="t" dataKey="TpP" name="Pump temperature (projected)" stroke={VIZ.orange} dot={false} strokeWidth={2} strokeDasharray="5 4" isAnimationActive={false} />
@@ -342,7 +342,7 @@ function TrajectoryCard({ s }) {
               <CartesianGrid {...GRID} />
               <XAxis dataKey="p" {...AXIS} type="number" domain={[0, FIELD.horizon]} tickCount={7} />
               <YAxis {...AXIS} width={40} domain={[-0.5, 1]} ticks={[-0.5, 0, 0.5, 1]} tickFormatter={(v) => v.toFixed(1)} />
-              <Tooltip formatter={(v) => (v == null ? '—' : v.toFixed(2))} labelFormatter={(l) => `Production day ${l}`} />
+              <Tooltip formatter={(v) => (v == null ? 'Not available' : v.toFixed(2))} labelFormatter={(l) => `Production day ${l}`} />
               <ReferenceLine y={FIELD.fmiLimit} stroke="#DC2626" strokeDasharray="4 3" label={{ value: 'FMI limit 0.15', position: 'insideBottomLeft', fontSize: 11, fill: '#DC2626' }} />
               {markers(0)}
               <Line dataKey="fmiH" name="FMI" stroke={VIZ.purple} dot={false} strokeWidth={2} isAnimationActive={false} />

@@ -3,7 +3,7 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar as RBar, XAxis, YAx
 import { Timer, Grid3x3, History } from 'lucide-react';
 import { PageHeader, Card, StatRow, Eq, Tex, Legend, VIZ, AXIS, GRID, fmt, Toggle } from '../components/ui';
 import { FIELD } from '../data/twin';
-import { markClass } from '../data/history';
+import { markClass, dmy } from '../data/history';
 
 export const CSS_TABS = ['Economic Cut-off (Optimal Stopping)', 'Cycle Design (Bayesian Optimization)', 'Counterfactual Backtest'];
 
@@ -218,7 +218,7 @@ function UploadedBacktest({ well, design, history, recs }) {
         ))}
       </div>
       <p className="text-xs text-ink-3">
-        Historical: {history.file}{history.sample && ' (synthetic sample)'}, imported {new Date(history.at).toLocaleDateString('en-IN')}.
+        Historical: {history.file}{history.sample && ' (synthetic sample)'}, imported {dmy(history.at)}.
         USHNA: SOR of the digital twin's NPV-optimal cycle design; because it maximises NPV, its SOR can exceed the historical value.
         Energy and rod failures: the per-cycle counterfactual is not yet modelled, so only historical values are shown.
       </p>

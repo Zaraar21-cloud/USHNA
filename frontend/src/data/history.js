@@ -170,6 +170,8 @@ export async function readFile(file) {
 
 export const markClass = (h) => (h?.sample ? 'mark-sample' : 'mark-uploaded'); // chart watermark (index.css)
 
+// Dates shown as dd-mm-yyyy.
+export const dmy = (d) => new Date(d).toLocaleDateString('en-GB').replaceAll('/', '-');
 export const toHistory = (file, records) => ({ file, at: new Date().toISOString(), sample: /^sample-cycle-history/.test(file), wells: byWell(records) });
 
 // Every stored record must be renderable, or nothing loads: a bad value must not blank the app.

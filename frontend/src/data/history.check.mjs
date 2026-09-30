@@ -1,4 +1,4 @@
-// Run: npm run check — historical records: the three sample formats agree, messy headers map,
+// Run: npm run check. historical records: the three sample formats agree, messy headers map,
 // bad rows are reported rather than dropped.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

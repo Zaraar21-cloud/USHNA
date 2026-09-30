@@ -187,7 +187,7 @@ function ViscosityChart({ d, c, muRes }) {
   );
 }
 
-// Chart B: more steam, less and less thinning, rising SOR — why an optimizer rather than "use more steam".
+// Chart B: more steam, less and less thinning, rising SOR. This is why an optimizer rather than "use more steam".
 function ReturnsChart({ curve, best }) {
   const opt = curve.find((p) => p.steam === best.steam);
   return (

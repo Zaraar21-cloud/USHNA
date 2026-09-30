@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar as RBar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { FileSpreadsheet, Upload, Trash2, X } from 'lucide-react';
 import { Card, Avatar, sub, fmt, VIZ, AXIS, GRID } from './ui';
-import { FIELDS, readFile, matchColumns, missingFields, toCycles, toHistory, markClass } from '../data/history';
+import { FIELDS, readFile, matchColumns, missingFields, toCycles, toHistory, markClass, dmy } from '../data/history';
 import { CSS_TABS } from '../pages/CssDesign';
 
 // Historical CSS cycle records: upload card (Edge telemetry), records table, well pop-up.
@@ -15,7 +15,7 @@ export async function sampleFile() {
 }
 
 const count = (h) => (h ? Object.values(h.wells).reduce((a, r) => a + r.length, 0) : 0);
-const f = (x, d = 0) => (x == null ? '—' : x.toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d }));
+const f = (x, d = 0) => (x == null ? 'Not available' : x.toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d }));
 
 export function RecordsTable({ records, showWell = true }) {
   const cols = [showWell && 'Well', 'Cycle', 'Steam (t)', 'Oil (bbl)', 'SOR', 'Energy (kWh/bbl)', 'Rod failures'].filter(Boolean);
@@ -115,7 +115,7 @@ export function RecordsUpload({ ctx }) {
       {!pending && h && (
         <div className="mt-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span><b>{count(h)} cycles</b> for {Object.keys(h.wells).length} wells from {h.file}{h.sample && ' (synthetic sample)'}, imported {new Date(h.at).toLocaleDateString('en-IN')}.</span>
+            <span><b>{count(h)} cycles</b> for {Object.keys(h.wells).length} wells from {h.file}{h.sample && ' (synthetic sample)'}, imported {dmy(h.at)}.</span>
             <button onClick={() => ctx.setHistory(null)} className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-red-700"><Trash2 size={13} /> Clear</button>
           </div>
           <p className="text-xs text-ink-3">Select a well in the header to view its history; the Counterfactual Backtest tab now charts these records.</p>
@@ -165,7 +165,7 @@ export function WellRecords({ ctx, go, onClose }) {
         {recs.length ? (
           <>
             <p className="mt-1 text-xs text-ink-3">
-              {recs.length} completed cycle{recs.length > 1 ? 's' : ''} from {ctx.history.file}{ctx.history.sample && ' (synthetic sample)'}, imported {new Date(ctx.history.at).toLocaleDateString('en-IN')}.
+              {recs.length} completed cycle{recs.length > 1 ? 's' : ''} from {ctx.history.file}{ctx.history.sample && ' (synthetic sample)'}, imported {dmy(ctx.history.at)}.
             </p>
             <p className="mt-3 text-xs font-medium text-ink-2">Steam-Oil Ratio (SOR) per cycle</p>
             <div className={`h-32 ${markClass(ctx.history)}`}>

@@ -1,5 +1,5 @@
 /**
- * USHNA — single-file React / Three.js wellbore visualisation.
+ * USHNA: single-file React / Three.js wellbore visualisation.
  * Dependencies: react >=18, three >=0.150.0 (tested against 0.170.0).
  * Usage: import Wellbore3DModel from './Wellbore3DModel'; <Wellbore3DModel />
  * Give the parent a height, or use the default 760 px component height.
